@@ -2,6 +2,15 @@
 
 import { useState } from "react";
 
+// Live Dialogflow phone-gateway number, injected at build time.
+const VOICE_NUMBER = process.env.NEXT_PUBLIC_VOICE_NUMBER?.trim();
+const telHref = (() => {
+  if (!VOICE_NUMBER) return undefined;
+  const digits = VOICE_NUMBER.replace(/\D/g, "");
+  if (!digits) return undefined;
+  return "tel:+" + (digits.length === 10 ? "1" + digits : digits);
+})();
+
 const STEPS = [
   {
     emoji: "🎙️",
@@ -56,6 +65,21 @@ export default function StarterGuide({ onClose }: { onClose: () => void }) {
           </div>
           <h2 className="serif text-3xl mt-1.5 leading-tight">{step.title}</h2>
           <p className="text-[14px] text-ink-soft leading-relaxed mt-2.5 max-w-sm mx-auto">{step.body}</p>
+
+          {i === 0 && telHref && (
+            <div className="mt-4 flex flex-col items-center gap-1.5">
+              <a
+                href={telHref}
+                className="inline-flex items-center gap-2 rounded-full px-5 py-2.5 text-sm font-semibold text-white transition-transform active:scale-95"
+                style={{ background: step.accent }}
+              >
+                📞 Call the agent — {VOICE_NUMBER}
+              </a>
+              <span className="text-[11px] text-ink-soft">
+                US number for now, due to budget constraints
+              </span>
+            </div>
+          )}
         </div>
 
         <div className="flex items-center justify-between px-6 pb-5">

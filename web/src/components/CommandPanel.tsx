@@ -50,7 +50,7 @@ export default function CommandPanel({
         </button>
         <div className="grid grid-cols-2 gap-2 mt-2">
           <button onClick={onSpeak} className="rounded-lg border border-line bg-card px-3 py-2 text-sm hover:border-saffron transition-colors">
-            🎙️ Speak
+            📞 Call agent
           </button>
           <button onClick={onNeeds} className="rounded-lg border border-line bg-card px-3 py-2 text-sm hover:border-civic-blue transition-colors">
             ♿ My needs

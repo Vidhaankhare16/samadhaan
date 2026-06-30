@@ -1,54 +1,37 @@
-# Dialogflow CX — "call the civic agent" channel
+# Dialogflow CX — "call the civic agent" channel (LIVE)
 
-A Dialogflow CX agent and a webhook (→ the live `/api/voice` endpoint) are **already created** in
-the project. This guide finishes the conversational route and connects it to a **web chat** widget
-(judge-verifiable) and/or a **phone number**.
+A Dialogflow CX agent is **fully wired and live**. Calling the phone number runs the agent, which
+files a real report through the same autonomous swarm the website uses.
 
-> The in-browser **🎙️ Speak your report** button on the live site already demonstrates the
-> voice → autonomous-swarm → map pipeline end-to-end, with no telephony needed. Dialogflow adds a
-> real phone/chat channel on top of the same webhook.
+## Live phone line
 
-## What already exists
+**📞 (251) 647-0679** — Dialogflow CX Phone Gateway ("Samadhaan agent", en-US).
+> US number for now, due to budget constraints. A free **in-browser call** (no number / no ISD,
+> works in India) is built into the site — open **Call agent** and talk to the same pipeline.
+
+## What's wired (done)
 
 - **Agent:** `Samadhaan Civic Agent`
   `projects/causal-galaxy-415009/locations/us-central1/agents/474d7221-2ac6-4294-af70-1061ba558a0b`
-- **Webhook:** `Samadhaan Ingest` → `https://samadhaan-822987556610.us-central1.run.app/api/voice`
-- Console: https://dialogflow.cloud.google.com/cx/projects/causal-galaxy-415009/locations/us-central1/agents/474d7221-2ac6-4294-af70-1061ba558a0b
+- **Webhook:** `Samadhaan Ingest` (`ea89bb3b-…`) → `https://samadhaan-822987556610.us-central1.run.app/api/voice`
+- **Start Flow → welcome route** (`12c266f6-…`): greets *"Namaste! You have reached the Samadhaan
+  civic agent."* and transitions to the Collect Report page.
+- **Collect Report page** (`e9702200-…`): required parameter `issue` (`@sys.any`) with prompt
+  *"Namaste! Please describe the civic issue and the area — for example, a pothole near MG Road."*
+- **Webhook route** on that page: condition `$page.params.status = "FINAL"` → calls `Samadhaan Ingest`
+  with tag `file_report` → transitions to **End Session**. The page's own duplicate spoken message was
+  removed so only the webhook's richer confirmation (with the tracking id) is heard.
 
-The webhook accepts the Dialogflow CX request shape and returns a spoken confirmation with a tracking
-id; it ingests the report into the same agent swarm the website uses.
+Verified end-to-end via `detectIntent`: greeting → issue capture → webhook fired (`webhook_ok: true`)
+→ real reports created and geotagged on the live map.
 
-## Finish the flow (~10 min, Console)
+## Two calling paths, one pipeline
 
-1. **Default Start Flow → Start Page → add a parameter**
-   - Page form parameter `issue`, entity `@sys.any`, required, prompt:
-     *"Namaste! Describe the civic issue and the area — for example, a pothole near MG Road."*
-   - (Optional) parameter `location`, entity `@sys.any`.
-2. **Add a route** on that page:
-   - Condition: `$page.params.status = "FINAL"`
-   - **Webhook:** select `Samadhaan Ingest`, tag `file_report`
-   - Fulfillment passes the captured text — the webhook reads
-     `sessionInfo.parameters.issue` / `.location`.
-   - Agent response: `$session.params.tracking_id` is returned by the webhook; say
-     *"Filed with tracking id $session.params.tracking_id. Watch it on the Samadhaan map."*
-3. **Test** in the simulator: type *"water leak near Indiranagar"* → you should get a tracking id,
-   and the report appears on the live map.
+1. **Real PSTN line:** (251) 647-0679 → Dialogflow CX → `/api/voice` → diagnosis swarm → map pin.
+2. **Free in-browser call:** the site's Call screen (Web Speech API + browser TTS) → `/api/voice` →
+   same swarm → map pin. No phone number, KYC, or ISD charges — works from India.
 
-## Expose it to judges
-
-### Option A — Web chat (instant, recommended)
-- **Manage → Integrations → Dialogflow Messenger → Connect** → Enable unauthenticated API.
-- Copy the `<df-messenger>` snippet. (To embed it in the site, set
-  `NEXT_PUBLIC_DF_*` and drop the snippet into `web/src/app/layout.tsx`.)
-- Judges click the chat bubble on the page and talk to the Dialogflow agent directly.
-
-### Option B — Phone number
-- **Manage → Integrations → Conversational Agents / Phone gateway** (or a telephony partner such as
-  Twilio / Avaya). Assign a number. Calls hit the same flow + webhook.
-- Set `NEXT_PUBLIC_VOICE_NUMBER` in Cloud Run env and the number renders on the "Talk to the agent"
-  card automatically.
-
-## Webhook contract (already implemented)
+## Webhook contract (implemented in `web/src/app/api/voice/route.ts`)
 
 Request (CX): `sessionInfo.parameters.issue`, `.location`, `.caller_name`
 Response (CX):
@@ -58,3 +41,8 @@ Response (CX):
   "sessionInfo": { "parameters": { "tracking_id": "SMD-2842", "report_area": "Indiranagar" } }
 }
 ```
+
+## Optional next step — web chat widget
+
+To also expose the agent as an embeddable chat: **Manage → Integrations → Dialogflow Messenger →
+Connect**, then drop the `<df-messenger>` snippet into `web/src/app/layout.tsx`.

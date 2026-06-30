@@ -22,3 +22,11 @@ npm-debug.log*
 Thumbs.db
 .vscode/
 .idea/
+
+# local reference screenshots / images at repo root (not part of the app)
+/*.png
+/*.jpg
+/*.jpeg
+/*.webp
+/*.gif
+Screenshot*.png

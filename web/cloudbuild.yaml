@@ -21,4 +21,4 @@ options:
 substitutions:
   _IMAGE: us-central1-docker.pkg.dev/causal-galaxy-415009/samadhaan/web:latest
   _MAPS_KEY: ""
-  _VOICE_NUMBER: ""
+  _VOICE_NUMBER: "(251) 647-0679"
