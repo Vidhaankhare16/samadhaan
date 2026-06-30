@@ -5,6 +5,7 @@ import { loadGoogleMaps } from "@/lib/mapsLoader";
 import { MAP_OPTIONS } from "@/lib/mapStyle";
 import { CITY_CENTER } from "@/lib/geo";
 import { CATEGORY_META, SEVERITY_META, type Report } from "@/lib/types";
+import type { Place } from "@/lib/places";
 import FallbackMap from "./FallbackMap";
 
 function pinSvg(report: Report): string {
@@ -25,18 +26,32 @@ function pinSvg(report: Report): string {
   return `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(svg)}`;
 }
 
+function placeSvg(p: Place): string {
+  const emoji = p.tags.includes("pet_friendly") ? "🐾" : p.tags.includes("cyclist") ? "🚲" : "♿";
+  const svg = `<svg width="34" height="34" viewBox="0 0 34 34" xmlns="http://www.w3.org/2000/svg">
+<defs><filter id="d" x="-30%" y="-30%" width="160%" height="160%"><feDropShadow dx="0" dy="1" stdDeviation="1" flood-opacity="0.3"/></filter></defs>
+<rect x="3" y="3" width="28" height="28" rx="8" fill="#1f4f7a" stroke="#faf5eb" stroke-width="2.2" filter="url(#d)"/>
+<text x="17" y="18" font-size="14" text-anchor="middle" dominant-baseline="central">${emoji}</text>
+</svg>`;
+  return `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(svg)}`;
+}
+
 export default function CityMap({
   reports,
+  places = [],
   selectedId,
   onSelect,
 }: {
   reports: Report[];
+  places?: Place[];
   selectedId: string | null;
   onSelect: (id: string) => void;
 }) {
   const divRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<google.maps.Map | null>(null);
   const markers = useRef<Map<string, google.maps.Marker>>(new Map());
+  const placeMarkers = useRef<Map<string, google.maps.Marker>>(new Map());
+  const userMarker = useRef<google.maps.Marker | null>(null);
   const onSelectRef = useRef(onSelect);
   onSelectRef.current = onSelect;
   const [failed, setFailed] = useState(false);
@@ -44,17 +59,12 @@ export default function CityMap({
 
   useEffect(() => {
     let cancelled = false;
-    // Google calls this if the key is rejected → degrade to the schematic map.
     window.gm_authFailure = () => setFailed(true);
     loadGoogleMaps()
       .then((g) => {
         if (cancelled || !divRef.current || mapRef.current) return;
-        mapRef.current = new g.maps.Map(divRef.current, {
-          ...MAP_OPTIONS,
-          center: CITY_CENTER,
-          zoom: 12,
-        });
-        setReady(true); // trigger marker sync now that the map exists
+        mapRef.current = new g.maps.Map(divRef.current, { ...MAP_OPTIONS, center: CITY_CENTER, zoom: 12 });
+        setReady(true);
       })
       .catch(() => setFailed(true));
     return () => {
@@ -62,20 +72,18 @@ export default function CityMap({
     };
   }, []);
 
-  // sync markers
+  // issue markers
   useEffect(() => {
     const map = mapRef.current;
     const g = (typeof window !== "undefined" && window.google) || null;
     if (!map || !g || !ready) return;
     const live = new Set(reports.map((r) => r.id));
-
     for (const [id, m] of markers.current) {
       if (!live.has(id)) {
         m.setMap(null);
         markers.current.delete(id);
       }
     }
-
     for (const r of reports) {
       const existing = markers.current.get(r.id);
       const icon: google.maps.Icon = {
@@ -88,20 +96,44 @@ export default function CityMap({
         existing.setPosition({ lat: r.lat, lng: r.lng });
         existing.setZIndex(r.id === selectedId ? 999 : undefined);
       } else {
-        const marker = new g.maps.Marker({
-          position: { lat: r.lat, lng: r.lng },
-          map,
-          icon,
-          title: r.title,
-          animation: g.maps.Animation.DROP,
-        });
+        const marker = new g.maps.Marker({ position: { lat: r.lat, lng: r.lng }, map, icon, title: r.title, animation: g.maps.Animation.DROP });
         marker.addListener("click", () => onSelectRef.current(r.id));
         markers.current.set(r.id, marker);
       }
     }
   }, [reports, selectedId, ready]);
 
-  // pan to selected
+  // accessibility place markers (+ fit to them when shown)
+  useEffect(() => {
+    const map = mapRef.current;
+    const g = (typeof window !== "undefined" && window.google) || null;
+    if (!map || !g || !ready) return;
+    const live = new Set(places.map((p) => p.id));
+    for (const [id, m] of placeMarkers.current) {
+      if (!live.has(id)) {
+        m.setMap(null);
+        placeMarkers.current.delete(id);
+      }
+    }
+    for (const p of places) {
+      if (placeMarkers.current.has(p.id)) continue;
+      const marker = new g.maps.Marker({
+        position: { lat: p.lat, lng: p.lng },
+        map,
+        icon: { url: placeSvg(p), scaledSize: new g.maps.Size(34, 34), anchor: new g.maps.Point(17, 17) },
+        title: `${p.name} — ${p.note}`,
+        zIndex: 500,
+      });
+      placeMarkers.current.set(p.id, marker);
+    }
+    if (places.length) {
+      const b = new g.maps.LatLngBounds();
+      places.forEach((p) => b.extend({ lat: p.lat, lng: p.lng }));
+      map.fitBounds(b, 80);
+    }
+  }, [places, ready]);
+
+  // pan to selected report
   useEffect(() => {
     const map = mapRef.current;
     if (!map || !selectedId) return;
@@ -112,8 +144,41 @@ export default function CityMap({
     }
   }, [selectedId, reports]);
 
-  if (failed)
-    return <FallbackMap reports={reports} selectedId={selectedId} onSelect={onSelect} />;
+  function locate() {
+    const map = mapRef.current;
+    const g = window.google;
+    if (!map || !g) return;
+    navigator.geolocation?.getCurrentPosition(
+      (pos) => {
+        const at = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+        map.panTo(at);
+        map.setZoom(15);
+        userMarker.current?.setMap(null);
+        userMarker.current = new g.maps.Marker({
+          position: at,
+          map,
+          icon: { path: g.maps.SymbolPath.CIRCLE, scale: 7, fillColor: "#1f4f7a", fillOpacity: 1, strokeColor: "#fff", strokeWeight: 3 },
+          title: "You are here",
+          zIndex: 1000,
+        });
+      },
+      () => {},
+      { enableHighAccuracy: true, timeout: 6000 },
+    );
+  }
 
-  return <div ref={divRef} className="absolute inset-0" />;
+  if (failed) return <FallbackMap reports={reports} selectedId={selectedId} onSelect={onSelect} />;
+
+  return (
+    <>
+      <div ref={divRef} className="absolute inset-0" />
+      <button
+        onClick={locate}
+        aria-label="Find my location"
+        className="absolute bottom-24 right-3 lg:bottom-3 z-10 w-10 h-10 rounded-full bg-card border border-line-strong shadow-md grid place-items-center text-lg hover:bg-paper-2"
+      >
+        ◎
+      </button>
+    </>
+  );
 }

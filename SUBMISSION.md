@@ -38,8 +38,15 @@ through a live Agent Desk so anyone can watch the agents reason and act in real 
    and routes it with the correct SLA; the Watchdog agent auto-escalates on breach.
 5. **AI Proof-of-Fix** — Gemini compares before/after photos and auto-verifies resolution,
    closing the civic loop end-to-end.
-6. **Impact dashboard** — live resolution rate, average resolve time, autonomous-action count,
+6. **My Needs (inclusive city)** — residents describe a disability or need (wheelchair, pet owner,
+   low vision, senior, parent, cyclist); Gemini recommends nearby places that work for them —
+   accessible metro stations, pet-friendly cafes — plotted on the map.
+7. **Impact dashboard** — live resolution rate, average resolve time, autonomous-action count,
    category breakdown, and area hotspots — anonymized civic intelligence for planners and NGOs.
+
+The interface is a full-bleed map with a single adaptive panel (a docked sidebar on desktop, a
+bottom sheet on mobile) introduced by a game-style starter guide, so a first-time user understands
+it in seconds on any device.
 
 ## Technologies Used
 

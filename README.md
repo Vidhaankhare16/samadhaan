@@ -24,6 +24,12 @@ resolve.**
    simulate a phone call). The voice agent files it and it lands on the map in seconds.
 4. **✅ AI Proof-of-Fix** — upload an "after" photo; Gemini compares it to the original and
    **auto-verifies** the resolution, closing the loop end-to-end.
+5. **♿ My Needs** — tell the app you're a wheelchair user, pet owner, low-vision, senior, etc.;
+   Gemini recommends nearby places that genuinely work for you (accessible metro stations,
+   pet-friendly cafes…) and pins them on the map.
+
+The UI is a full-bleed map with one adaptive panel — a docked sidebar on desktop, a bottom sheet on
+mobile — opened by a game-style starter guide so anyone understands it in seconds.
 
 ---
 
