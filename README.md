@@ -1,73 +1,98 @@
-# समाधान · Samadhaan — the civic issue that resolves itself
+# समाधान · Samadhaan
 
-**Live demo:** https://samadhaan-822987556610.us-central1.run.app
+> The civic issue that resolves itself.
 
-An autonomous, multi-agent civic platform for the **Community Hero — Hyperlocal Problem Solver**
-problem statement. Citizens only **report** a problem (by photo, chat, or voice). A swarm of AI
-agents then does everything a municipal back-office would do — **diagnose, de-duplicate, draft the
-formal complaint, file it to the right department, track the SLA, escalate on breach, and verify
-the fix** — with *no human pressing a button*.
+## Live links
 
-Past winners of this problem statement stopped at *insight* (ingest → summarize → dashboard).
-Samadhaan closes the loop the brief actually asks for: **identify → report → validate → track →
-resolve.**
+- **Live application:** https://samadhaan-822987556610.us-central1.run.app
+- **Source code:** https://github.com/Vidhaankhare16/samadhaan
+- **Call the civic agent:** [(251) 647‑0679](tel:+12516470679) (US number for now, due to budget constraints)
+- **Full write up:** [PROJECT.md](PROJECT.md) · **Phone setup:** [DIALOGFLOW_SETUP.md](DIALOGFLOW_SETUP.md)
 
----
+## Summary
 
-## The four things a judge can verify in 60 seconds
+Samadhaan is an autonomous, multi agent civic platform for the **Community Hero, Hyperlocal Problem Solver** problem statement. A citizen does exactly one thing: they **report** a problem (a pothole, a water leak, a broken streetlight, garbage). Everything a municipal back office would normally do then happens on its own. AI agents diagnose the issue, remove duplicates, draft a formal complaint, file it with the correct department, track the deadline, escalate if nobody acts, and verify the fix from an "after" photo.
 
-1. **🗺️ Living City Map** — report an issue and watch it appear as a custom emoji pin on a
-   hand-styled Google Map of Bengaluru, color-coded by AI-assessed severity.
-2. **🤖 Live Agent Desk** — the autonomy is *rendered on screen*. Watch the agents reason and act
-   in real time: `Diagnosis → Dedup → Action (files complaint) → Watchdog (tracks SLA)`.
-3. **🎙️ Talk to the agent** — can't type or read? **Speak** your complaint in the browser (or
-   simulate a phone call). The voice agent files it and it lands on the map in seconds.
-4. **✅ AI Proof-of-Fix** — upload an "after" photo; Gemini compares it to the original and
-   **auto-verifies** the resolution, closing the loop end-to-end.
-5. **♿ My Needs** — tell the app you're a wheelchair user, pet owner, low-vision, senior, etc.;
-   Gemini recommends nearby places that genuinely work for you (accessible metro stations,
-   pet-friendly cafes…) and pins them on the map.
+Most comparable projects stop at *insight* (ingest reports, show a dashboard). Samadhaan closes the loop the brief asks for: **identify, report, validate, track, and resolve**, and it shows the agents working live on screen rather than only claiming autonomy.
 
-The UI is a full-bleed map with one adaptive panel — a docked sidebar on desktop, a bottom sheet on
-mobile — opened by a game-style starter guide so anyone understands it in seconds.
+Try it at the [live application](https://samadhaan-822987556610.us-central1.run.app).
 
----
+## Google technologies used (and the feature each one powers)
+
+| Google technology | What it powers in Samadhaan |
+|-------------------|------------------------------|
+| **Gemini 3.5 Flash** (Gemini API / Vertex AI) | Multimodal photo diagnosis, severity scoring, autonomous complaint drafting, before/after proof of fix, and personalized accessibility recommendations |
+| **Dialogflow CX** | The phone agent on [(251) 647‑0679](tel:+12516470679): it greets the caller, captures the issue, and calls the app webhook to file a real report |
+| **Google Maps Platform** | Maps JavaScript API with a custom "civic paper" style, custom emoji markers, and geolocation that centres the map on the user |
+| **Cloud Run** | Hosting for the whole app as one always on container, with CPU always allocated so background agents finish |
+| **Cloud Build and Artifact Registry** | Container build pipeline and image registry for every deploy |
+
+## What makes Samadhaan different
+
+### 1. Call to report: the most inclusive channel comes first
+
+The headline feature is that you can **call a phone number and simply speak**. Dial [(251) 647‑0679](tel:+12516470679), say what the problem is and where it is, and the Dialogflow agent files it and reads back a tracking id. The report appears on the live map within seconds.
+
+Why this matters:
+
+- **Low internet or no internet for the app.** A plain phone call works on a basic handset and a weak network. People who cannot stream a web app can still report a problem.
+- **No tech expertise required.** No app to install, no account, no form, no typing. If you can make a phone call, you can be a Community Hero.
+- **Truly local and inclusive.** Elderly residents, people who are not comfortable reading or writing, and anyone without a smartphone are included by default.
+
+Two calling paths reach the same pipeline:
+
+1. **Real phone line:** [(251) 647‑0679](tel:+12516470679), via the Dialogflow CX phone gateway.
+2. **Free in browser call:** a full "call the agent" screen (ringing, connected timer, the agent speaking, a live transcript) built with the browser speech APIs. No phone number, no international dialling, no charges, so it works from India during the demo.
+
+### 2. Built for every body: the accessibility layer
+
+In **My needs**, a resident says who they are (wheelchair user, pet owner, parent with a stroller, low vision, senior, cyclist) or describes their situation in their own words. Gemini recommends nearby places that genuinely work for them (step free metro stations, pet friendly cafes, accessible parks) and pins them on the map with a short, personal reason for each. The platform becomes an everyday companion for inclusion, not just a complaint box.
+
+### 3. Snap a photo, geotagged on the map
+
+Take a picture of the issue and the app does the rest. The photo is **geotagged** so the report lands at the right spot and the map auto centres on your vicinity. **Gemini Vision** identifies the issue and scores its severity, and the report is **plotted live** as a colour coded marker before the agents take over. The map is a living picture of the neighbourhood that updates the instant a report arrives, from any channel.
+
+## How it works: architecture
+
+```
+ Citizen
+   |  phone call  ->  Dialogflow CX  -------\
+   |  in browser call (Web Speech)  --------+--> /api/voice  ----\
+   |  photo or text  ----------------------/                     |
+   |  My needs  ------------------------------> /api/needs       |
+                                                                 v
+                                                   In process event bus
+                                                                 |
+        Intake -> Diagnosis -> Dedup -> Action -> Watchdog -> ProofOfFix
+        (Gemini)            (geo cluster) (files)  (SLA)     (before/after)
+                                                                 |
+                                            Server Sent Events (/api/stream)
+                                                                 |
+                            Live map  +  Agent desk  +  Impact dashboard
+```
+
+- **Frontend:** Next.js 16 (App Router), TypeScript, Tailwind, deployed as a standalone server on [Cloud Run](https://samadhaan-822987556610.us-central1.run.app).
+- **Realtime without a fragile database:** state lives in an in process store and streams to the browser over Server Sent Events. A single always on instance keeps it consistent and lets background agents finish after the response. Nothing external can fail mid judging.
+- **Visible autonomy:** every agent writes a reasoning line to a live feed, so the **Agent desk** shows the swarm working step by step.
+- **Graceful map:** if Google Maps cannot authorize, the app falls back to its own designed schematic map.
+- **Location aware:** the app detects the user's location and shifts the demo data so the living map appears around wherever they are.
 
 ## The autonomous agent swarm
 
-| Agent | Trigger | What it does (no prompt) |
-|-------|---------|--------------------------|
-| **Intake** | new report (photo / chat / voice) | normalizes any input into a structured case |
-| **Diagnosis** | after intake | Gemini multimodal — classifies category + severity, writes a title |
-| **Dedup** | after diagnosis | geo-clusters reports within 80 m, merges duplicates, raises priority |
-| **Action** | after dedup | drafts a **formal grievance letter** and files it to the correct department with an SLA |
-| **Watchdog** | continuous (cron) | monitors SLA deadlines and **auto-escalates** breaches |
-| **ProofOfFix** | after-photo upload | Gemini before/after comparison → auto-resolves the case |
-
-Every agent writes a reasoning entry to a live event stream, so the swarm's work is visible, not
-just claimed.
-
-## Google technologies
-
-- **Gemini 3.5 Flash** (Vertex / Gemini API) — multimodal diagnosis, complaint drafting, proof-of-fix
-- **Google Maps Platform** — custom-styled Maps JavaScript API
-- **Cloud Run** — deployment (single always-on instance, CPU always allocated for background agents)
-- **Cloud Build + Artifact Registry** — container build & registry
-- **Dialogflow CX** — telephony voice channel → `/api/voice` webhook (see `DIALOGFLOW_SETUP.md`)
-
-## Tech
-
-Next.js 16 (App Router) · TypeScript · Tailwind v4 · Server-Sent Events for realtime · Gemini REST.
-A **Warm-Civic × Govtech** design language — paper textures, editorial serif headlines, custom map
-styling — deliberately not a templated SaaS theme.
-
----
+| Agent | When it runs | What it does on its own |
+|-------|--------------|--------------------------|
+| **Intake** | a report arrives (call, photo, or text) | turns any input into a structured case |
+| **Diagnosis** | after intake | Gemini classifies the category and severity and writes a clear title |
+| **Dedup** | after diagnosis | clusters nearby reports of the same issue and raises priority |
+| **Action** | after dedup | drafts a formal grievance and files it with the right department and a deadline |
+| **Watchdog** | continuously | tracks the deadline and escalates a breach with no human trigger |
+| **ProofOfFix** | an after photo is uploaded | Gemini compares before and after and auto resolves the case |
 
 ## Run locally
 
 ```bash
 cd web
-cp .env.example .env.local   # fill in GEMINI_API_KEY + NEXT_PUBLIC_MAPS_API_KEY
+cp .env.example .env.local   # add GEMINI_API_KEY and NEXT_PUBLIC_MAPS_API_KEY
 npm install
 npm run dev                  # http://localhost:3000
 ```
@@ -76,8 +101,7 @@ npm run dev                  # http://localhost:3000
 
 ```bash
 cd web
-gcloud builds submit --config cloudbuild.yaml \
-  --substitutions=_MAPS_KEY="$MAPS_KEY"
+gcloud builds submit --config cloudbuild.yaml --substitutions=_MAPS_KEY="$MAPS_KEY"
 gcloud run deploy samadhaan \
   --image us-central1-docker.pkg.dev/<PROJECT>/samadhaan/web:latest \
   --region us-central1 --allow-unauthenticated \
@@ -85,10 +109,4 @@ gcloud run deploy samadhaan \
   --set-env-vars "GEMINI_API_KEY=...,GEMINI_MODEL=gemini-3.5-flash"
 ```
 
-## Architecture notes
-
-- **Realtime** is an in-process event bus + SSE (`/api/stream`). A single always-on Cloud Run
-  instance keeps the store consistent and lets background agents finish after the HTTP response —
-  zero external-DB dependency that could fail mid-judging.
-- The map **degrades gracefully**: if Google Maps can't authorize, the app renders its own designed
-  schematic map so the demo is never broken.
+For the full project write up see [PROJECT.md](PROJECT.md). For the phone agent setup see [DIALOGFLOW_SETUP.md](DIALOGFLOW_SETUP.md).
