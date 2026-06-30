@@ -39,11 +39,13 @@ function placeSvg(p: Place): string {
 export default function CityMap({
   reports,
   places = [],
+  focus = null,
   selectedId,
   onSelect,
 }: {
   reports: Report[];
   places?: Place[];
+  focus?: { lat: number; lng: number } | null;
   selectedId: string | null;
   onSelect: (id: string) => void;
 }) {
@@ -52,6 +54,7 @@ export default function CityMap({
   const markers = useRef<Map<string, google.maps.Marker>>(new Map());
   const placeMarkers = useRef<Map<string, google.maps.Marker>>(new Map());
   const userMarker = useRef<google.maps.Marker | null>(null);
+  const didFocus = useRef(false);
   const onSelectRef = useRef(onSelect);
   onSelectRef.current = onSelect;
   const [failed, setFailed] = useState(false);
@@ -132,6 +135,24 @@ export default function CityMap({
       map.fitBounds(b, 80);
     }
   }, [places, ready]);
+
+  // auto-center on the user's detected location (one-shot) + "you are here"
+  useEffect(() => {
+    const map = mapRef.current;
+    const g = (typeof window !== "undefined" && window.google) || null;
+    if (!map || !g || !ready || !focus || didFocus.current) return;
+    didFocus.current = true;
+    map.panTo(focus);
+    map.setZoom(14);
+    userMarker.current?.setMap(null);
+    userMarker.current = new g.maps.Marker({
+      position: focus,
+      map,
+      icon: { path: g.maps.SymbolPath.CIRCLE, scale: 7, fillColor: "#1f4f7a", fillOpacity: 1, strokeColor: "#fff", strokeWeight: 3 },
+      title: "You are here",
+      zIndex: 1000,
+    });
+  }, [focus, ready]);
 
   // pan to selected report
   useEffect(() => {

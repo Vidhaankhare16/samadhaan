@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import dynamic from "next/dynamic";
 import { useLive } from "@/lib/useLive";
+import { CITY_CENTER } from "@/lib/geo";
 import type { Report } from "@/lib/types";
 import type { Place } from "@/lib/places";
 import CommandPanel, { type PanelView } from "@/components/CommandPanel";
@@ -14,6 +15,7 @@ import NeedsModal from "@/components/NeedsModal";
 const CityMap = dynamic(() => import("@/components/CityMap"), { ssr: false });
 
 type ModalKind = null | "report" | "speak" | "needs";
+export interface GeoOffset { dLat: number; dLng: number }
 
 function useIsDesktop() {
   const [d, setD] = useState(true);
@@ -32,17 +34,38 @@ export default function Home() {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [view, setView] = useState<PanelView>("pulse");
   const [modal, setModal] = useState<ModalKind>(null);
-  const [guide, setGuide] = useState(false);
+  const [guide, setGuide] = useState(true); // opens on every load
   const [needsPlaces, setNeedsPlaces] = useState<Place[]>([]);
   const [sheetFull, setSheetFull] = useState(false);
+  const [userLoc, setUserLoc] = useState<{ lat: number; lng: number } | null>(null);
   const isDesktop = useIsDesktop();
 
+  // auto-detect location → center the map on the user's vicinity
   useEffect(() => {
-    if (!localStorage.getItem("sam_seen")) {
-      setGuide(true);
-      localStorage.setItem("sam_seen", "1");
-    }
+    navigator.geolocation?.getCurrentPosition(
+      (p) => setUserLoc({ lat: p.coords.latitude, lng: p.coords.longitude }),
+      () => {},
+      { enableHighAccuracy: true, timeout: 8000 },
+    );
   }, []);
+
+  // shift the (synthetic) city data so it sits around wherever the user is
+  const offset: GeoOffset = useMemo(
+    () =>
+      userLoc
+        ? { dLat: userLoc.lat - CITY_CENTER.lat, dLng: userLoc.lng - CITY_CENTER.lng }
+        : { dLat: 0, dLng: 0 },
+    [userLoc],
+  );
+
+  const shiftedReports = useMemo(
+    () => reports.map((r) => ({ ...r, lat: r.lat + offset.dLat, lng: r.lng + offset.dLng })),
+    [reports, offset],
+  );
+  const shiftedPlaces = useMemo(
+    () => needsPlaces.map((p) => ({ ...p, lat: p.lat + offset.dLat, lng: p.lng + offset.dLng })),
+    [needsPlaces, offset],
+  );
 
   // autonomous watchdog heartbeat
   useEffect(() => {
@@ -66,7 +89,6 @@ export default function Home() {
     setView("agents");
     if (!isDesktop) setSheetFull(true);
   }
-
   function selectReport(id: string | null) {
     setSelectedId(id);
     if (!isDesktop && id) setSheetFull(true);
@@ -88,10 +110,14 @@ export default function Home() {
 
   return (
     <div className="relative h-screen overflow-hidden">
-      {/* Map fills everything */}
-      <CityMap reports={reports} places={needsPlaces} selectedId={selectedId} onSelect={selectReport} />
+      <CityMap
+        reports={shiftedReports}
+        places={shiftedPlaces}
+        focus={userLoc}
+        selectedId={selectedId}
+        onSelect={selectReport}
+      />
 
-      {/* Top bar */}
       <header className="absolute top-0 inset-x-0 z-20 flex items-center gap-3 px-3 sm:px-4 py-2.5 pointer-events-none">
         <div className="pointer-events-auto flex items-center gap-2 bg-paper-2/90 backdrop-blur border border-line rounded-full pl-3 pr-2 py-1.5 shadow-sm">
           <span className="serif text-lg leading-none" style={{ fontFamily: "system-ui,'Noto Sans Devanagari',serif" }}>समाधान</span>
@@ -117,7 +143,6 @@ export default function Home() {
         </div>
       </header>
 
-      {/* Adaptive panel */}
       {isDesktop ? (
         <aside className="absolute left-4 top-16 bottom-4 w-[384px] z-20 bg-paper-2 border border-line-strong rounded-xl shadow-2xl flex flex-col overflow-hidden">
           {panel}
@@ -127,32 +152,18 @@ export default function Home() {
           className="fixed inset-x-0 bottom-0 z-20 bg-paper-2 border-t border-line-strong rounded-t-2xl shadow-2xl flex flex-col overflow-hidden transition-[height] duration-300"
           style={{ height: sheetFull ? "88vh" : "46vh" }}
         >
-          <button
-            onClick={() => setSheetFull((v) => !v)}
-            className="shrink-0 py-2 grid place-items-center"
-            aria-label={sheetFull ? "Collapse panel" : "Expand panel"}
-          >
+          <button onClick={() => setSheetFull((v) => !v)} className="shrink-0 py-2 grid place-items-center" aria-label={sheetFull ? "Collapse panel" : "Expand panel"}>
             <span className="h-1.5 w-12 rounded-full bg-line-strong" />
           </button>
           <div className="flex-1 min-h-0">{panel}</div>
         </aside>
       )}
 
-      {guide && (
-        <StarterGuide
-          onSpeak={() => { setGuide(false); setModal("speak"); }}
-          onPhoto={() => { setGuide(false); setModal("report"); }}
-          onNeeds={() => { setGuide(false); setModal("needs"); }}
-          onClose={() => setGuide(false)}
-        />
-      )}
-      {modal === "report" && <ReportModal onClose={() => setModal(null)} onFiled={onFiled} />}
+      {guide && <StarterGuide onClose={() => setGuide(false)} />}
+      {modal === "report" && <ReportModal offset={offset} onClose={() => setModal(null)} onFiled={onFiled} />}
       {modal === "speak" && <SpeakModal onClose={() => setModal(null)} onFiled={onFiled} />}
       {modal === "needs" && (
-        <NeedsModal
-          onClose={() => setModal(null)}
-          onShowOnMap={(places) => { setNeedsPlaces(places); setModal(null); }}
-        />
+        <NeedsModal onClose={() => setModal(null)} onShowOnMap={(places) => { setNeedsPlaces(places); setModal(null); }} />
       )}
     </div>
   );

@@ -1,122 +1,96 @@
 "use client";
 
-export default function StarterGuide({
-  onSpeak,
-  onPhoto,
-  onNeeds,
-  onClose,
-}: {
-  onSpeak: () => void;
-  onPhoto: () => void;
-  onNeeds: () => void;
-  onClose: () => void;
-}) {
+import { useState } from "react";
+
+const STEPS = [
+  {
+    emoji: "🎙️",
+    tag: "Speak it",
+    title: "Call the agent — just talk",
+    body: "See a problem in the city? Tell our voice agent what it is and where. We pin it on the map and report it to the right authority for you — no forms, no logins.",
+    accent: "#d2602e",
+  },
+  {
+    emoji: "📷",
+    tag: "Snap it",
+    title: "Or send a photo",
+    body: "Take a picture of the issue. Our AI identifies it, maps it, and files the complaint with the correct department automatically.",
+    accent: "#173a2f",
+  },
+  {
+    emoji: "♿",
+    tag: "Made for you",
+    title: "Tell us your needs",
+    body: "Wheelchair user, pet parent, low vision or senior? We'll map places near you that actually work — accessible metro stations, pet-friendly cafes and more.",
+    accent: "#1f4f7a",
+  },
+];
+
+export default function StarterGuide({ onClose }: { onClose: () => void }) {
+  const [i, setI] = useState(0);
+  const step = STEPS[i];
+  const last = i === STEPS.length - 1;
+
   return (
-    <div className="fixed inset-0 z-[70] flex items-center justify-center p-4 overflow-y-auto">
+    <div className="fixed inset-0 z-[70] flex items-center justify-center p-4">
       <div className="absolute inset-0 bg-ink/55 backdrop-blur-md" onClick={onClose} />
 
-      <div className="relative w-full max-w-2xl my-auto bg-card border border-line-strong rounded-2xl shadow-2xl rise overflow-hidden">
-        <div className="px-6 sm:px-8 pt-7 pb-5 text-center border-b border-line">
+      <div className="relative w-full max-w-md bg-card border border-line-strong rounded-2xl shadow-2xl overflow-hidden">
+        <div className="px-6 pt-5 text-center">
           <div className="eyebrow text-saffron">Welcome to</div>
-          <h1
-            className="serif text-4xl sm:text-5xl mt-1 leading-none"
-            style={{ fontFamily: "system-ui, 'Noto Sans Devanagari', serif" }}
-          >
-            समाधान
-          </h1>
-          <p className="serif text-2xl sm:text-3xl mt-1">Samadhaan</p>
-          <p className="text-ink-soft text-sm sm:text-[15px] mt-3 max-w-md mx-auto leading-relaxed">
-            Spot a problem in the city? You do one thing — <b>report it</b>. Our AI agents handle the
-            rest: they pin it on the map and file it with the right authority for you.
-          </p>
-        </div>
-
-        <div className="p-5 sm:p-6 grid sm:grid-cols-2 gap-3">
-          <GuideCard
-            badge="1"
-            emoji="🎙️"
-            title="Speak it"
-            body="Tell us the problem and where it is. Just talk — like calling a helpline."
-            cta="Report by voice"
-            onClick={onSpeak}
-            accent="#d2602e"
-          />
-          <GuideCard
-            badge="2"
-            emoji="📷"
-            title="Snap it"
-            body="Take a photo of the issue. AI identifies it and files it automatically."
-            cta="Report with a photo"
-            onClick={onPhoto}
-            accent="#173a2f"
-          />
-        </div>
-
-        <button
-          onClick={onNeeds}
-          className="mx-5 sm:mx-6 mb-4 w-[calc(100%-2.5rem)] sm:w-[calc(100%-3rem)] text-left rounded-xl border border-line bg-paper-2 hover:border-civic-blue transition-colors px-4 py-3 flex items-center gap-3"
-        >
-          <span className="text-2xl">♿</span>
-          <div className="flex-1">
-            <div className="font-semibold text-[14px]">Have a disability or special need?</div>
-            <div className="text-[12.5px] text-ink-soft leading-snug">
-              Wheelchair user, pet parent, low vision, senior? Get places nearby that actually work
-              for you.
-            </div>
+          <div className="flex items-baseline justify-center gap-2 mt-0.5">
+            <span className="serif text-2xl leading-none" style={{ fontFamily: "system-ui,'Noto Sans Devanagari',serif" }}>समाधान</span>
+            <span className="serif text-xl leading-none">Samadhaan</span>
           </div>
-          <span className="text-civic-blue mono text-sm">→</span>
-        </button>
+        </div>
 
-        <div className="px-5 sm:px-6 pb-6">
-          <button onClick={onClose} className="btn-primary w-full">
-            Explore the live map
+        <div key={i} className="px-6 py-6 text-center rise">
+          <div
+            className="mx-auto grid place-items-center w-20 h-20 rounded-full text-4xl"
+            style={{ background: step.accent + "18" }}
+          >
+            {step.emoji}
+          </div>
+          <div className="eyebrow mt-4" style={{ color: step.accent }}>
+            Step {i + 1} of {STEPS.length} · {step.tag}
+          </div>
+          <h2 className="serif text-3xl mt-1.5 leading-tight">{step.title}</h2>
+          <p className="text-[14px] text-ink-soft leading-relaxed mt-2.5 max-w-sm mx-auto">{step.body}</p>
+        </div>
+
+        <div className="flex items-center justify-between px-6 pb-5">
+          {i > 0 ? (
+            <button onClick={() => setI(i - 1)} className="text-[13px] text-ink-soft hover:text-ink mono">
+              ← Back
+            </button>
+          ) : (
+            <button onClick={onClose} className="text-[13px] text-ink-soft hover:text-ink mono">
+              Skip
+            </button>
+          )}
+
+          <div className="flex gap-1.5">
+            {STEPS.map((_, n) => (
+              <span
+                key={n}
+                className="h-1.5 rounded-full transition-all"
+                style={{
+                  width: n === i ? 18 : 6,
+                  background: n === i ? step.accent : "var(--color-line-strong)",
+                }}
+              />
+            ))}
+          </div>
+
+          <button
+            onClick={() => (last ? onClose() : setI(i + 1))}
+            className="inline-flex items-center gap-1.5 rounded-full px-4 py-2 text-sm font-semibold text-white transition-transform active:scale-95"
+            style={{ background: step.accent }}
+          >
+            {last ? "Explore the map" : "Next"} →
           </button>
         </div>
       </div>
     </div>
-  );
-}
-
-function GuideCard({
-  badge,
-  emoji,
-  title,
-  body,
-  cta,
-  onClick,
-  accent,
-}: {
-  badge: string;
-  emoji: string;
-  title: string;
-  body: string;
-  cta: string;
-  onClick: () => void;
-  accent: string;
-}) {
-  return (
-    <button
-      onClick={onClick}
-      className="text-left rounded-xl border border-line bg-paper-2 hover:bg-card transition-colors p-4 flex flex-col group"
-      style={{ borderColor: accent + "33" }}
-    >
-      <div className="flex items-center gap-2">
-        <span
-          className="grid place-items-center w-9 h-9 rounded-full text-lg"
-          style={{ background: accent + "18" }}
-        >
-          {emoji}
-        </span>
-        <span className="mono text-[11px] text-ink-soft">STEP {badge}</span>
-      </div>
-      <div className="serif text-2xl mt-2">{title}</div>
-      <div className="text-[13px] text-ink-soft leading-snug mt-1 flex-1">{body}</div>
-      <span
-        className="mt-3 inline-flex items-center gap-1.5 text-[13px] font-semibold"
-        style={{ color: accent }}
-      >
-        {cta} <span className="group-hover:translate-x-0.5 transition-transform">→</span>
-      </span>
-    </button>
   );
 }

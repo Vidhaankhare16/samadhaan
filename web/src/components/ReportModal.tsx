@@ -17,9 +17,11 @@ function fileToDataUrl(file: File): Promise<string> {
 export default function ReportModal({
   onClose,
   onFiled,
+  offset = { dLat: 0, dLng: 0 },
 }: {
   onClose: () => void;
   onFiled: (r: Report) => void;
+  offset?: { dLat: number; dLng: number };
 }) {
   const [note, setNote] = useState("");
   const [imageUrl, setImageUrl] = useState<string>();
@@ -34,8 +36,10 @@ export default function ReportModal({
     if (f) setImageUrl(await fileToDataUrl(f));
   }
   function locate() {
+    // store in the synthetic city's coordinate space; the map re-applies the
+    // same offset on display, so the pin lands exactly where the user stands.
     navigator.geolocation?.getCurrentPosition(
-      (p) => setCoords({ lat: p.coords.latitude, lng: p.coords.longitude }),
+      (p) => setCoords({ lat: p.coords.latitude - offset.dLat, lng: p.coords.longitude - offset.dLng }),
       () => {},
       { enableHighAccuracy: true, timeout: 6000 },
     );
