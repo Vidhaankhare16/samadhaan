@@ -37,7 +37,7 @@ const CATEGORIES: IssueCategory[] = [
   "sewage", "fallen_tree", "traffic_signal", "other",
 ];
 
-const DIAGNOSIS_SYS = `You are the Diagnosis agent of a civic issue platform in Bengaluru, India.
+const DIAGNOSIS_SYS = `You are the Diagnosis agent of a civic issue platform serving the citizen's own city.
 Classify a citizen-reported infrastructure problem. Return STRICT JSON only:
 {"category": one of ${JSON.stringify(CATEGORIES)},
  "severity": "low"|"medium"|"high"|"critical",
@@ -105,7 +105,7 @@ async function draftComplaint(r: Report): Promise<string> {
   }
   try {
     return await genText(
-      `Write a concise, formal municipal grievance letter (max 130 words) to "${dept}" in Bengaluru.
+      `Write a concise, formal municipal grievance letter (max 130 words) to "${dept}".
 Issue: ${CATEGORY_META[r.category].label} at ${r.address}.
 Details: ${r.description}
 Severity: ${r.severity}. Corroborating citizens: ${r.upvotes}.
@@ -122,7 +122,7 @@ End with: "— Samadhaan Autonomous Civic Desk". Output only the letter text.`,
  * Run the autonomous agent swarm on a freshly ingested report.
  * Writes a live, paced agent log so the Agent Console renders the reasoning.
  */
-export async function runAgentSwarm(reportId: string) {
+export async function runAgentSwarm(reportId: string, opts: { preClassified?: boolean } = {}) {
   const r0 = getReport(reportId);
   if (!r0) return;
   let r = r0;
@@ -130,10 +130,23 @@ export async function runAgentSwarm(reportId: string) {
   // 1) Intake
   log(r, "Intake", `Received ${r.source} report`, `Normalized the ${r.source} input from ${r.area} into a structured civic report and opened a case file.`);
 
-  // 2) Diagnosis
+  // 2) Diagnosis — reuse the upload-time vision pass when present, else classify now.
   await sleep(700);
-  log(r, "Diagnosis", "Analyzing input…", "Running multimodal analysis to classify the issue type and public-safety severity.", "thinking");
-  const d = await diagnose(r);
+  let d: Diagnosis;
+  if (opts.preClassified) {
+    log(r, "Diagnosis", "Reusing vision analysis…", "The photo was already classified at upload by Gemini Vision; confirming the diagnosis.", "thinking");
+    d = {
+      category: r.category,
+      severity: r.severity,
+      title: r.title,
+      description: r.description,
+      confidence: r.confidence ?? 0.85,
+    };
+    await sleep(300);
+  } else {
+    log(r, "Diagnosis", "Analyzing input…", "Running multimodal analysis to classify the issue type and public-safety severity.", "thinking");
+    d = await diagnose(r);
+  }
   r.category = d.category;
   r.severity = d.severity;
   r.title = d.title || r.title;

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import dynamic from "next/dynamic";
 import { useLive } from "@/lib/useLive";
 import { CITY_CENTER } from "@/lib/geo";
@@ -11,6 +11,10 @@ import StarterGuide from "@/components/StarterGuide";
 import ReportModal from "@/components/ReportModal";
 import SpeakModal from "@/components/SpeakModal";
 import NeedsModal from "@/components/NeedsModal";
+import Toaster, { type Toast } from "@/components/Toaster";
+import { CATEGORY_META } from "@/lib/types";
+import { useLocale } from "@/lib/useLocale";
+import { deptName, localizeArea, localizePlace, localizeReport, localizeText } from "@/lib/locale";
 
 const CityMap = dynamic(() => import("@/components/CityMap"), { ssr: false });
 
@@ -36,9 +40,20 @@ export default function Home() {
   const [modal, setModal] = useState<ModalKind>(null);
   const [guide, setGuide] = useState(true); // opens on every load
   const [needsPlaces, setNeedsPlaces] = useState<Place[]>([]);
+  const [routeId, setRouteId] = useState<string | null>(null);
   const [sheetFull, setSheetFull] = useState(false);
   const [userLoc, setUserLoc] = useState<{ lat: number; lng: number } | null>(null);
+  const [toasts, setToasts] = useState<Toast[]>([]);
+  const notifiedRef = useRef<Map<string, string>>(new Map());
+  const sheetDragY = useRef<number | null>(null);
   const isDesktop = useIsDesktop();
+
+  const pushToast = useCallback((t: Omit<Toast, "id">) => {
+    setToasts((cur) => [...cur, { ...t, id: crypto.randomUUID() }].slice(-3));
+  }, []);
+  const dismissToast = useCallback((id: string) => {
+    setToasts((cur) => cur.filter((t) => t.id !== id));
+  }, []);
 
   // auto-detect location → center the map on the user's vicinity
   useEffect(() => {
@@ -58,13 +73,80 @@ export default function Home() {
     [userLoc],
   );
 
+  // resolve the user's real city + neighborhood names from their location
+  const locale = useLocale(userLoc, offset);
+
+  // Notify the citizen when their report is actually routed to / escalated by /
+  // resolved with an authority — fires once per status transition per report.
+  useEffect(() => {
+    for (const r of reports) {
+      const prev = notifiedRef.current.get(r.id);
+      if (prev === r.status) continue;
+      const seen = notifiedRef.current.has(r.id);
+      notifiedRef.current.set(r.id, r.status);
+      // never toast on first sighting (initial snapshot / seeded reports) — only
+      // on a real status change observed live during this session.
+      if (!seen) continue;
+      const emoji = CATEGORY_META[r.category]?.emoji ?? "📍";
+      const area = localizeArea(r.area, locale);
+      const dept = r.department ? deptName(r.category, locale?.city) : "the department";
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- notify on live status change
+      if (r.status === "filed" && r.department) {
+        pushToast({
+          emoji: "✅",
+          accent: "#2f7d57",
+          title: `Reported to ${dept}`,
+          body: `${emoji} ${r.shortId} · ${area} — a complaint was filed automatically with a ${r.department.slaHours}-hour response standard.`,
+        });
+      } else if (r.status === "escalated") {
+        pushToast({
+          emoji: "⚠️",
+          accent: "#b23a2e",
+          title: `${r.shortId} escalated to higher authority`,
+          body: `${dept} missed its SLA — Samadhaan auto-escalated it for you.`,
+        });
+      } else if (r.status === "resolved") {
+        pushToast({
+          emoji: "🎉",
+          accent: "#2f7d57",
+          title: `${r.shortId} resolved & verified`,
+          body: `${emoji} ${area} — the fix was confirmed and the case closed.`,
+        });
+      }
+    }
+  }, [reports, pushToast, locale]);
+
+  // shift coordinates to the user, then relabel all text to their city
   const shiftedReports = useMemo(
-    () => reports.map((r) => ({ ...r, lat: r.lat + offset.dLat, lng: r.lng + offset.dLng })),
-    [reports, offset],
+    () =>
+      reports.map((r) =>
+        localizeReport({ ...r, lat: r.lat + offset.dLat, lng: r.lng + offset.dLng }, locale),
+      ),
+    [reports, offset, locale],
   );
   const shiftedPlaces = useMemo(
-    () => needsPlaces.map((p) => ({ ...p, lat: p.lat + offset.dLat, lng: p.lng + offset.dLng })),
-    [needsPlaces, offset],
+    () =>
+      needsPlaces.map((p) =>
+        localizePlace({ ...p, lat: p.lat + offset.dLat, lng: p.lng + offset.dLng }, locale),
+      ),
+    [needsPlaces, offset, locale],
+  );
+  const routeTo = useMemo(() => {
+    const p = shiftedPlaces.find((x) => x.id === routeId);
+    return p ? { ...p, _origin: userLoc } : null;
+  }, [shiftedPlaces, routeId, userLoc]);
+
+  const localizedActivity = useMemo(
+    () =>
+      locale
+        ? activity.map((a) => ({
+            ...a,
+            area: localizeArea(a.area, locale),
+            action: localizeText(a.action, locale),
+            reasoning: localizeText(a.reasoning, locale),
+          }))
+        : activity,
+    [activity, locale],
   );
 
   // autonomous watchdog heartbeat
@@ -76,8 +158,8 @@ export default function Home() {
   }, []);
 
   const selected: Report | null = useMemo(
-    () => reports.find((r) => r.id === selectedId) ?? null,
-    [reports, selectedId],
+    () => shiftedReports.find((r) => r.id === selectedId) ?? null,
+    [shiftedReports, selectedId],
   );
 
   const resolved = reports.filter((r) => r.status === "resolved").length;
@@ -96,8 +178,8 @@ export default function Home() {
 
   const panel = (
     <CommandPanel
-      reports={reports}
-      activity={activity}
+      reports={shiftedReports}
+      activity={localizedActivity}
       selected={selected}
       onSelect={selectReport}
       view={view}
@@ -114,6 +196,7 @@ export default function Home() {
         reports={shiftedReports}
         places={shiftedPlaces}
         focus={userLoc}
+        routeTo={routeTo}
         selectedId={selectedId}
         onSelect={selectReport}
       />
@@ -152,18 +235,67 @@ export default function Home() {
           className="fixed inset-x-0 bottom-0 z-20 bg-paper-2 border-t border-line-strong rounded-t-2xl shadow-2xl flex flex-col overflow-hidden transition-[height] duration-300"
           style={{ height: sheetFull ? "88vh" : "46vh" }}
         >
-          <button onClick={() => setSheetFull((v) => !v)} className="shrink-0 py-2 grid place-items-center" aria-label={sheetFull ? "Collapse panel" : "Expand panel"}>
+          <button
+            onClick={() => setSheetFull((v) => !v)}
+            onTouchStart={(e) => (sheetDragY.current = e.touches[0].clientY)}
+            onTouchEnd={(e) => {
+              if (sheetDragY.current == null) return;
+              const dy = e.changedTouches[0].clientY - sheetDragY.current;
+              if (dy < -35) setSheetFull(true);
+              else if (dy > 35) setSheetFull(false);
+              sheetDragY.current = null;
+            }}
+            className="shrink-0 py-2.5 grid place-items-center touch-none"
+            aria-label={sheetFull ? "Collapse panel" : "Expand panel"}
+          >
             <span className="h-1.5 w-12 rounded-full bg-line-strong" />
           </button>
           <div className="flex-1 min-h-0">{panel}</div>
         </aside>
       )}
 
+      {routeTo && (
+        <div className="absolute inset-x-0 top-14 sm:top-16 z-30 flex justify-center px-3 pointer-events-none">
+          <div className="pointer-events-auto flex items-center gap-2 bg-civic-blue text-white rounded-full pl-3.5 pr-2 py-1.5 shadow-lg rise max-w-[92vw]">
+            <span className="text-sm">🧭</span>
+            <span className="text-[12.5px] font-medium truncate">Routing to {routeTo.name}</span>
+            <a
+              href={`https://www.google.com/maps/dir/?api=1${userLoc ? `&origin=${userLoc.lat},${userLoc.lng}` : ""}&destination=${routeTo.lat},${routeTo.lng}`}
+              target="_blank"
+              rel="noreferrer"
+              className="ml-1 text-[11px] mono bg-white/15 hover:bg-white/25 rounded-full px-2 py-0.5 transition"
+            >
+              open ↗
+            </a>
+            <button
+              onClick={() => setRouteId(null)}
+              aria-label="Clear route"
+              className="text-white/90 hover:text-white text-sm leading-none px-1"
+            >
+              ✕
+            </button>
+          </div>
+        </div>
+      )}
+
+      <Toaster toasts={toasts} onDismiss={dismissToast} />
+
       {guide && <StarterGuide onClose={() => setGuide(false)} />}
       {modal === "report" && <ReportModal offset={offset} onClose={() => setModal(null)} onFiled={onFiled} />}
       {modal === "speak" && <SpeakModal onClose={() => setModal(null)} onFiled={onFiled} />}
       {modal === "needs" && (
-        <NeedsModal onClose={() => setModal(null)} onShowOnMap={(places) => { setNeedsPlaces(places); setModal(null); }} />
+        <NeedsModal
+          userLoc={userLoc}
+          locale={locale}
+          onClose={() => setModal(null)}
+          onShowOnMap={(places) => setNeedsPlaces(places)}
+          onRoute={(place) => {
+            setNeedsPlaces((prev) => (prev.some((p) => p.id === place.id) ? prev : [...prev, place]));
+            setRouteId(place.id);
+            setModal(null);
+            if (!isDesktop) setSheetFull(false);
+          }}
+        />
       )}
     </div>
   );

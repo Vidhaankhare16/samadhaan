@@ -1,24 +1,14 @@
 "use client";
 
 import { useMemo } from "react";
-import { AREAS } from "@/lib/geo";
+import { CITY_CENTER } from "@/lib/geo";
 import { CATEGORY_META, SEVERITY_META, type Report } from "@/lib/types";
 
 // Schematic "civic paper" map used when Google Maps can't authorize.
-// Projects lat/lng over the Bengaluru area bounds onto a styled canvas.
+// Projects lat/lng over the live reports' bounds onto a styled canvas, so it
+// works wherever the user is (not fixed to any one city).
 
 const PAD = 0.03;
-
-function bounds() {
-  const lats = AREAS.map((a) => a.lat);
-  const lngs = AREAS.map((a) => a.lng);
-  return {
-    minLat: Math.min(...lats) - PAD,
-    maxLat: Math.max(...lats) + PAD,
-    minLng: Math.min(...lngs) - PAD,
-    maxLng: Math.max(...lngs) + PAD,
-  };
-}
 
 export default function FallbackMap({
   reports,
@@ -29,7 +19,19 @@ export default function FallbackMap({
   selectedId: string | null;
   onSelect: (id: string) => void;
 }) {
-  const b = useMemo(bounds, []);
+  const b = useMemo(() => {
+    const lats = reports.map((r) => r.lat);
+    const lngs = reports.map((r) => r.lng);
+    if (!lats.length) {
+      return { minLat: CITY_CENTER.lat - 0.1, maxLat: CITY_CENTER.lat + 0.1, minLng: CITY_CENTER.lng - 0.1, maxLng: CITY_CENTER.lng + 0.1 };
+    }
+    return {
+      minLat: Math.min(...lats) - PAD,
+      maxLat: Math.max(...lats) + PAD,
+      minLng: Math.min(...lngs) - PAD,
+      maxLng: Math.max(...lngs) + PAD,
+    };
+  }, [reports]);
   const project = (lat: number, lng: number) => ({
     left: `${((lng - b.minLng) / (b.maxLng - b.minLng)) * 100}%`,
     top: `${(1 - (lat - b.minLat) / (b.maxLat - b.minLat)) * 100}%`,
@@ -50,16 +52,16 @@ export default function FallbackMap({
         <line x1="70%" y1="0" x2="62%" y2="100%" stroke="#e3cba6" strokeWidth="5" strokeLinecap="round" />
       </svg>
 
-      {/* area labels */}
-      {AREAS.map((a) => {
-        const p = project(a.lat, a.lng);
+      {/* area labels derived from the live reports (already localized) */}
+      {Array.from(new Map(reports.map((r) => [r.area, r])).values()).map((r) => {
+        const p = project(r.lat, r.lng);
         return (
           <div
-            key={a.name}
+            key={r.area}
             className="absolute -translate-x-1/2 -translate-y-1/2 mono text-[10px] text-ink-soft/70 pointer-events-none select-none"
             style={p}
           >
-            ◦ {a.name}
+            ◦ {r.area}
           </div>
         );
       })}

@@ -40,12 +40,14 @@ export default function CityMap({
   reports,
   places = [],
   focus = null,
+  routeTo = null,
   selectedId,
   onSelect,
 }: {
   reports: Report[];
   places?: Place[];
   focus?: { lat: number; lng: number } | null;
+  routeTo?: (Place & { _origin?: { lat: number; lng: number } | null }) | null;
   selectedId: string | null;
   onSelect: (id: string) => void;
 }) {
@@ -54,6 +56,8 @@ export default function CityMap({
   const markers = useRef<Map<string, google.maps.Marker>>(new Map());
   const placeMarkers = useRef<Map<string, google.maps.Marker>>(new Map());
   const userMarker = useRef<google.maps.Marker | null>(null);
+  const directionsRenderer = useRef<google.maps.DirectionsRenderer | null>(null);
+  const routeLine = useRef<google.maps.Polyline | null>(null);
   const didFocus = useRef(false);
   const onSelectRef = useRef(onSelect);
   onSelectRef.current = onSelect;
@@ -164,6 +168,64 @@ export default function CityMap({
       if ((map.getZoom() ?? 12) < 14) map.setZoom(14);
     }
   }, [selectedId, reports]);
+
+  // draw a route to a recommended place ("take me there")
+  useEffect(() => {
+    const map = mapRef.current;
+    const g = (typeof window !== "undefined" && window.google) || null;
+    if (!map || !g || !ready) return;
+
+    // clear any previous route
+    directionsRenderer.current?.setMap(null);
+    directionsRenderer.current = null;
+    routeLine.current?.setMap(null);
+    routeLine.current = null;
+    if (!routeTo) return;
+
+    const dest = { lat: routeTo.lat, lng: routeTo.lng };
+    const origin = routeTo._origin ?? focus ?? CITY_CENTER;
+
+    const drawStraightLine = () => {
+      routeLine.current = new g.maps.Polyline({
+        path: [origin, dest],
+        map,
+        geodesic: true,
+        strokeColor: "#1f4f7a",
+        strokeOpacity: 0.9,
+        strokeWeight: 4,
+        icons: [{ icon: { path: g.maps.SymbolPath.FORWARD_CLOSED_ARROW, scale: 3 }, offset: "100%" }],
+      });
+      const b = new g.maps.LatLngBounds();
+      b.extend(origin);
+      b.extend(dest);
+      map.fitBounds(b, 90);
+    };
+
+    try {
+      const service = new g.maps.DirectionsService();
+      directionsRenderer.current = new g.maps.DirectionsRenderer({
+        map,
+        suppressMarkers: true,
+        preserveViewport: false,
+        polylineOptions: { strokeColor: "#1f4f7a", strokeOpacity: 0.95, strokeWeight: 5 },
+      });
+      service.route(
+        { origin, destination: dest, travelMode: g.maps.TravelMode.DRIVING },
+        (result, status) => {
+          if (status === "OK" && result && directionsRenderer.current) {
+            directionsRenderer.current.setDirections(result);
+          } else {
+            // synthetic / unroutable coords → fall back to a direct guide line
+            directionsRenderer.current?.setMap(null);
+            directionsRenderer.current = null;
+            drawStraightLine();
+          }
+        },
+      );
+    } catch {
+      drawStraightLine();
+    }
+  }, [routeTo, focus, ready]);
 
   function locate() {
     const map = mapRef.current;

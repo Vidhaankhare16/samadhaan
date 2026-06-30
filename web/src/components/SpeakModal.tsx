@@ -6,13 +6,13 @@ import type { Report } from "@/lib/types";
 
 const AGENT_NAME = "Samadhaan Civic Agent";
 const GREETING =
-  "Namaste! You've reached the Samadhaan civic agent. Please describe the civic issue and the area — for example, a pothole near MG Road.";
+  "Namaste! You've reached the Samadhaan civic agent. Please describe the civic issue and the area — for example, a pothole near the main road junction.";
 
 const SAMPLES = [
-  "There's a huge pothole near the Koramangala 80 feet road signal, dangerous for bikes",
-  "Water pipe has burst near MG Road, the whole footpath is flooded",
-  "Street lights are not working on 12th main in Indiranagar, it's very dark",
-  "Garbage is overflowing near the BTM Layout bus stop",
+  "There's a huge pothole near the main road signal, dangerous for two-wheelers",
+  "A water pipe has burst near the market, the whole footpath is flooded",
+  "Street lights are not working on my street, it's very dark at night",
+  "Garbage is overflowing near the bus stop in my area",
 ];
 
 type Turn = { who: "agent" | "you"; text: string };

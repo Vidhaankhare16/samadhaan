@@ -1,7 +1,7 @@
 import { nextShortId, putReport } from "./store";
 import { runAgentSwarm } from "./agents";
 import { AREAS, jitter, nearestArea } from "./geo";
-import type { Report, ReportSource } from "./types";
+import type { IssueCategory, Report, ReportSource, Severity } from "./types";
 
 export interface IngestInput {
   source: ReportSource;
@@ -12,6 +12,10 @@ export interface IngestInput {
   lng?: number;
   area?: string;
   reporterName?: string;
+  // pre-classification from the upload-time vision pass (skip re-diagnosing)
+  category?: IssueCategory;
+  severity?: Severity;
+  confidence?: number;
 }
 
 /** Create a report, place it on the map immediately, then run the agent swarm. */
@@ -33,15 +37,16 @@ export function ingestReport(input: IngestInput): Report {
   }
   if (!area) area = nearestArea({ lat, lng }).name;
 
+  const preClassified = Boolean(input.category);
   const now = Date.now();
   const report: Report = {
     id: crypto.randomUUID(),
     shortId: nextShortId(),
     source: input.source,
-    category: "other",
+    category: input.category ?? "other",
     title: input.title || titleFrom(input.note) || "New civic report",
     description: input.note || "",
-    severity: "medium",
+    severity: input.severity ?? "medium",
     status: "intake",
     lat,
     lng,
@@ -50,14 +55,14 @@ export function ingestReport(input: IngestInput): Report {
     imageUrl: input.imageUrl,
     reporterName: input.reporterName,
     upvotes: 1,
-    confidence: undefined,
+    confidence: input.confidence,
     createdAt: now,
     updatedAt: now,
     agentLog: [],
   };
 
   putReport(report, "report:new"); // marker appears on the live map instantly
-  void runAgentSwarm(report.id); // autonomous swarm, streams to the console
+  void runAgentSwarm(report.id, { preClassified }); // autonomous swarm, streams to the console
   return report;
 }
 

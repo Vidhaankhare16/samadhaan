@@ -19,6 +19,9 @@ export async function POST(req: Request) {
     lng: typeof body.lng === "number" ? body.lng : undefined,
     area: body.area,
     reporterName: body.reporterName,
+    category: body.category,
+    severity: body.severity,
+    confidence: typeof body.confidence === "number" ? body.confidence : undefined,
   });
   return NextResponse.json({ report });
 }
