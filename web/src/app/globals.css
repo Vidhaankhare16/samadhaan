@@ -1,0 +1,131 @@
+@import "tailwindcss";
+
+/* ─────────────────────────────────────────────────────────────
+   SAMADHAAN — Warm-Civic × Govtech design language
+   Paper-toned, editorial, official. Deliberately not a SaaS theme.
+   ───────────────────────────────────────────────────────────── */
+
+@theme {
+  /* Paper / ink */
+  --color-paper: #f3ece0;
+  --color-paper-2: #faf5eb;
+  --color-card: #fbf8f1;
+  --color-ink: #211c16;
+  --color-ink-soft: #5c5247;
+  --color-line: #ddd2bf;
+  --color-line-strong: #c7b9a1;
+
+  /* Official accents */
+  --color-saffron: #d2602e;
+  --color-saffron-soft: #f0d9c6;
+  --color-deep: #173a2f; /* official deep green */
+  --color-verify: #2f7d57; /* resolved */
+  --color-amber: #c6862a; /* in progress */
+  --color-urgent: #b23a2e; /* high severity */
+  --color-civic-blue: #1f4f7a;
+
+  --font-serif: var(--font-serif);
+  --font-sans: var(--font-sans);
+  --font-mono: var(--font-mono);
+
+  --radius-card: 4px;
+}
+
+:root {
+  color-scheme: light;
+}
+
+body {
+  font-family: var(--font-sans), system-ui, sans-serif;
+  /* faint paper grain so surfaces never read as flat AI gradient */
+  background-color: var(--color-paper);
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.035'/%3E%3C/svg%3E");
+}
+
+h1, h2, h3, .serif {
+  font-family: var(--font-serif), Georgia, serif;
+  letter-spacing: -0.01em;
+}
+
+.mono {
+  font-family: var(--font-mono), ui-monospace, monospace;
+}
+
+/* Hairline editorial rule */
+.rule {
+  border-bottom: 1px solid var(--color-line);
+}
+
+/* Official "stamp" motif — used for verified / resolved badges */
+.stamp {
+  font-family: var(--font-mono), monospace;
+  text-transform: uppercase;
+  letter-spacing: 0.18em;
+  border: 1.5px solid currentColor;
+  border-radius: 3px;
+  transform: rotate(-3deg);
+}
+
+/* Eyebrow label */
+.eyebrow {
+  font-family: var(--font-mono), monospace;
+  text-transform: uppercase;
+  letter-spacing: 0.22em;
+  font-size: 0.66rem;
+  color: var(--color-ink-soft);
+}
+
+/* Card with letterpress feel */
+.card {
+  background: var(--color-card);
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius-card);
+  box-shadow: 0 1px 0 0 #ffffffcc inset, 0 1px 2px 0 #00000010;
+}
+
+/* Live ping dot */
+@keyframes ping-soft {
+  0% { box-shadow: 0 0 0 0 currentColor; opacity: 0.9; }
+  70% { box-shadow: 0 0 0 7px transparent; opacity: 0.9; }
+  100% { box-shadow: 0 0 0 0 transparent; opacity: 0.9; }
+}
+.live-dot { animation: ping-soft 1.8s ease-out infinite; }
+
+@keyframes rise {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.rise { animation: rise 0.45s cubic-bezier(0.2, 0.8, 0.2, 1) both; }
+
+/* Buttons */
+.btn-primary {
+  background: var(--color-ink);
+  color: var(--color-paper-2);
+  font-weight: 600;
+  font-size: 0.875rem;
+  padding: 0.55rem 1rem;
+  border-radius: 3px;
+  transition: transform 0.08s ease, background 0.15s ease;
+}
+.btn-primary:hover { background: #000; }
+.btn-primary:active { transform: translateY(1px); }
+.btn-primary:disabled { opacity: 0.45; cursor: not-allowed; }
+
+.btn-saffron {
+  background: var(--color-saffron);
+  color: #fff;
+  font-weight: 600;
+  font-size: 0.875rem;
+  padding: 0.55rem 1rem;
+  border-radius: 3px;
+  transition: transform 0.08s ease, filter 0.15s ease;
+}
+.btn-saffron:hover { filter: brightness(1.05); }
+.btn-saffron:active { transform: translateY(1px); }
+
+/* Thin custom scrollbar so panels feel crafted */
+.thin-scroll::-webkit-scrollbar { width: 7px; height: 7px; }
+.thin-scroll::-webkit-scrollbar-thumb {
+  background: var(--color-line-strong); border-radius: 99px;
+}
+.thin-scroll::-webkit-scrollbar-track { background: transparent; }

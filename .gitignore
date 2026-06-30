@@ -1,0 +1,24 @@
+# secrets & credentials
+*.env
+.env
+.env.*
+!.env.example
+*-service-account*.json
+causal-galaxy-*.json
+service-account*.json
+gcp-key*.json
+
+# node / next
+**/node_modules/
+**/.next/
+**/out/
+**/build/
+**/dist/
+*.log
+npm-debug.log*
+
+# os / editor
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
