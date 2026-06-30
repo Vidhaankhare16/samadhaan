@@ -1,4 +1,4 @@
-# समाधान · Samadhaan — Project Description
+# समाधान · Samadhaan : Project Description
 
 > **How to paste into Google Docs:** open a Google Doc, go to **Tools → Preferences** and turn on **"Automatically detect Markdown"**, then copy everything below this line and paste. The headings, the tables, and the architecture diagram block will format automatically. Set the doc sharing to **"Anyone with the link"** before submitting.
 
