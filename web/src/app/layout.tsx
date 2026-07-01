@@ -1,21 +1,41 @@
 import type { Metadata } from "next";
-import { Fraunces, Geist, Geist_Mono } from "next/font/google";
+import {
+  Newsreader,
+  IBM_Plex_Sans,
+  IBM_Plex_Mono,
+  IBM_Plex_Sans_Devanagari,
+} from "next/font/google";
 import "./globals.css";
 
-const fraunces = Fraunces({
+// Editorial "official bulletin" display face for headings + report titles.
+const newsreader = Newsreader({
   variable: "--font-serif",
   subsets: ["latin"],
-  axes: ["opsz", "SOFT", "WONK"],
+  display: "swap",
 });
 
-const geistSans = Geist({
+// Institutional, technical-humanist body face (govtech, not generic SaaS).
+const plexSans = IBM_Plex_Sans({
   variable: "--font-sans",
   subsets: ["latin"],
+  weight: ["400", "500", "600", "700"],
+  display: "swap",
 });
 
-const geistMono = Geist_Mono({
+// Utility face for eyebrows, stamps and tracking IDs.
+const plexMono = IBM_Plex_Mono({
   variable: "--font-mono",
   subsets: ["latin"],
+  weight: ["400", "500", "600"],
+  display: "swap",
+});
+
+// Devanagari cut that harmonizes with Plex — for the समाधान wordmark.
+const plexDevanagari = IBM_Plex_Sans_Devanagari({
+  variable: "--font-deva",
+  subsets: ["devanagari", "latin"],
+  weight: ["400", "500", "600", "700"],
+  display: "swap",
 });
 
 export const metadata: Metadata = {
@@ -32,7 +52,7 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={`${fraunces.variable} ${geistSans.variable} ${geistMono.variable} h-full antialiased`}
+      className={`${newsreader.variable} ${plexSans.variable} ${plexMono.variable} ${plexDevanagari.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col bg-paper text-ink">
         {children}

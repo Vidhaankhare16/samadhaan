@@ -47,6 +47,8 @@ export default function CityMap({
   places = [],
   focus = null,
   routeTo = null,
+  flyToId = null,
+  bottomInsetPx = 0,
   selectedId,
   onSelect,
 }: {
@@ -54,6 +56,10 @@ export default function CityMap({
   places?: Place[];
   focus?: { lat: number; lng: number } | null;
   routeTo?: (Place & { _origin?: { lat: number; lng: number } | null }) | null;
+  /** a freshly-filed report to "fly to" and spotlight on the map */
+  flyToId?: string | null;
+  /** height (px) covered by the mobile bottom sheet, so the pin frames above it */
+  bottomInsetPx?: number;
   selectedId: string | null;
   onSelect: (id: string) => void;
 }) {
@@ -65,6 +71,8 @@ export default function CityMap({
   const directionsRenderer = useRef<google.maps.DirectionsRenderer | null>(null);
   const routeLine = useRef<google.maps.Polyline | null>(null);
   const didFocus = useRef(false);
+  const flownTo = useRef<string | null>(null);
+  const bounceTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const onSelectRef = useRef(onSelect);
   onSelectRef.current = onSelect;
   const [failed, setFailed] = useState(false);
@@ -174,6 +182,67 @@ export default function CityMap({
       if ((map.getZoom() ?? 12) < 14) map.setZoom(14);
     }
   }, [selectedId, reports]);
+
+  // "fly to" a freshly-filed report: frame it tightly (above the mobile sheet),
+  // then bounce the pin and ping a ring so the citizen is unmistakably taken to
+  // exactly where their issue was geotagged.
+  useEffect(() => {
+    const map = mapRef.current;
+    const g = (typeof window !== "undefined" && window.google) || null;
+    if (!map || !g || !ready || !flyToId) return;
+    if (flownTo.current === flyToId) return; // only once per filed report
+    const r = reports.find((x) => x.id === flyToId);
+    if (!r) return; // marker/report not on the map yet — wait for the next tick
+    flownTo.current = flyToId;
+
+    const at = { lat: r.lat, lng: r.lng };
+    // a ~260m box around the pin gives a close, sensible zoom via fitBounds
+    const d = 0.0022;
+    const bounds = new g.maps.LatLngBounds(
+      { lat: at.lat - d, lng: at.lng - d },
+      { lat: at.lat + d, lng: at.lng + d },
+    );
+    map.fitBounds(bounds, {
+      top: 90,
+      left: 60,
+      right: 60,
+      bottom: bottomInsetPx + 60, // keep the pin clear of the bottom sheet
+    });
+
+    // bounce the marker for a beat
+    const marker = markers.current.get(flyToId);
+    if (marker) {
+      marker.setZIndex(1001);
+      marker.setAnimation(g.maps.Animation.BOUNCE);
+      if (bounceTimer.current) clearTimeout(bounceTimer.current);
+      bounceTimer.current = setTimeout(() => marker.setAnimation(null), 2400);
+    }
+
+    // expanding "ping" ring that fades out
+    const ring = new g.maps.Circle({
+      map,
+      center: at,
+      radius: 20,
+      strokeColor: "#d2602e",
+      strokeOpacity: 0.9,
+      strokeWeight: 2,
+      fillColor: "#d2602e",
+      fillOpacity: 0.18,
+      clickable: false,
+      zIndex: 400,
+    });
+    const t0 = Date.now();
+    const anim = setInterval(() => {
+      const p = (Date.now() - t0) / 1100;
+      if (p >= 1) {
+        clearInterval(anim);
+        ring.setMap(null);
+        return;
+      }
+      ring.setRadius(20 + p * 200);
+      ring.setOptions({ strokeOpacity: 0.9 * (1 - p), fillOpacity: 0.18 * (1 - p) });
+    }, 30);
+  }, [flyToId, reports, ready, bottomInsetPx]);
 
   // draw a route to a recommended place ("take me there")
   useEffect(() => {

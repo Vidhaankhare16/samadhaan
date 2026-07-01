@@ -27,6 +27,7 @@
   --font-serif: var(--font-serif);
   --font-sans: var(--font-sans);
   --font-mono: var(--font-mono);
+  --font-deva: var(--font-deva);
 
   --radius-card: 4px;
 }
@@ -49,6 +50,11 @@ h1, h2, h3, .serif {
 
 .mono {
   font-family: var(--font-mono), ui-monospace, monospace;
+}
+
+/* Devanagari wordmark (समाधान) — Plex Devanagari, matches the body face */
+.deva {
+  font-family: var(--font-deva), "Noto Sans Devanagari", var(--font-sans), system-ui, sans-serif;
 }
 
 /* Hairline editorial rule */

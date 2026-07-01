@@ -20,12 +20,17 @@ export async function POST(req: Request) {
     params.issue || params.note || body.note || body.text || "Issue reported by phone";
   const area: string | undefined = params.location || params.area || body.area;
   const reporterName: string | undefined = params.caller_name || body.reporterName;
+  // in-browser agent geotags the caller to where they're standing
+  const lat = typeof body.lat === "number" ? body.lat : undefined;
+  const lng = typeof body.lng === "number" ? body.lng : undefined;
 
   const report = ingestReport({
-    source: "phone",
+    source: body.source === "voice" ? "voice" : "phone",
     note,
     area,
     reporterName,
+    lat,
+    lng,
   });
 
   const speak = `Thank you. Your ${report.area} report has been filed with tracking id ${spell(report.shortId)}. Our civic agents are now handling it. You can watch it live on the Samadhaan map.`;

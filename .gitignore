@@ -8,6 +8,11 @@ causal-galaxy-*.json
 service-account*.json
 gcp-key*.json
 
+# python (voice-agent)
+**/.venv/
+**/__pycache__/
+*.pyc
+
 # node / next
 **/node_modules/
 **/.next/

@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { AREAS } from "@/lib/geo";
 import type { Report } from "@/lib/types";
+import type { GeoOffset } from "@/app/page";
 
 const AGENT_NAME = "Samadhaan Civic Agent";
 const GREETING =
@@ -18,12 +19,16 @@ const SAMPLES = [
 type Turn = { who: "agent" | "you"; text: string };
 type Phase = "dialing" | "connected" | "filing" | "filed";
 
-async function fileVoice(note: string): Promise<Report> {
+async function fileVoice(
+  note: string,
+  coords: { lat: number; lng: number } | null,
+): Promise<Report> {
+  // an explicitly spoken area name overrides GPS; otherwise pin to the caller
   const area = AREAS.find((a) => note.toLowerCase().includes(a.name.toLowerCase()))?.name;
   const res = await fetch("/api/voice", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ note, area }),
+    body: JSON.stringify({ source: "voice", note, area, lat: coords?.lat, lng: coords?.lng }),
   });
   return (await res.json()).report as Report;
 }
@@ -51,9 +56,11 @@ function mmss(s: number) {
 export default function SpeakModal({
   onClose,
   onFiled,
+  offset = { dLat: 0, dLng: 0 },
 }: {
   onClose: () => void;
   onFiled: (r: Report) => void;
+  offset?: GeoOffset;
 }) {
   const [phase, setPhase] = useState<Phase>("dialing");
   const [listening, setListening] = useState(false);
@@ -61,10 +68,31 @@ export default function SpeakModal({
   const [partial, setPartial] = useState("");
   const [seconds, setSeconds] = useState(0);
   const [done, setDone] = useState<Report | null>(null);
+  const [located, setLocated] = useState(false);
 
   const recRef = useRef<{ stop(): void } | null>(null);
   const finalRef = useRef("");
   const scrollRef = useRef<HTMLDivElement | null>(null);
+  // caller's position in the synthetic city space (map re-applies the same
+  // offset on display, so the pin lands exactly where the caller stands)
+  const coordsRef = useRef<{ lat: number; lng: number } | null>(null);
+
+  // grab the caller's location the moment the line opens, so whatever issue
+  // they describe is geotagged to where they actually are — not a random spot.
+  useEffect(() => {
+    navigator.geolocation?.getCurrentPosition(
+      (p) => {
+        coordsRef.current = {
+          lat: p.coords.latitude - offset.dLat,
+          lng: p.coords.longitude - offset.dLng,
+        };
+        setLocated(true);
+      },
+      () => {},
+      { enableHighAccuracy: true, timeout: 8000 },
+    );
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const supported =
     typeof window !== "undefined" && (window.webkitSpeechRecognition || window.SpeechRecognition);
@@ -75,7 +103,7 @@ export default function SpeakModal({
       setTurns((t) => [...t, { who: "you", text }]);
       setPhase("filing");
       try {
-        const r = await fileVoice(text);
+        const r = await fileVoice(text, coordsRef.current);
         const line = `Thank you. Your ${r.area} report is filed with tracking id ${r.shortId
           .replace("-", " ")
           .split("")
@@ -204,7 +232,7 @@ export default function SpeakModal({
               className="grid place-items-center w-24 h-24 rounded-full text-4xl"
               style={{ background: "#ffffff14", border: "1px solid #ffffff2e" }}
             >
-              <span style={{ fontFamily: "system-ui,'Noto Sans Devanagari',serif" }}>स</span>
+              <span className="deva">स</span>
             </div>
           </div>
 
@@ -212,6 +240,12 @@ export default function SpeakModal({
           <div className="mono text-[13px] mt-1" style={{ color: "#cfe3d8" }}>
             {dialing ? "ringing…" : `${mmss(seconds)} · secure civic line`}
           </div>
+          {!dialing && (
+            <div className="mono text-[11px] mt-1.5 inline-flex items-center gap-1.5" style={{ color: located ? "#8fd3ad" : "#9fc4b3" }}>
+              <span>📍</span>
+              {located ? "Location locked — your report will pin here" : "Locating you…"}
+            </div>
+          )}
         </div>
 
         {/* transcript */}

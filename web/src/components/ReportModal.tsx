@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Modal from "./Modal";
 import { AREAS } from "@/lib/geo";
 import { CATEGORY_META, SEVERITY_META, type IssueCategory, type Report, type Severity } from "@/lib/types";
@@ -52,6 +52,13 @@ export default function ReportModal({
       { enableHighAccuracy: true, timeout: 6000 },
     );
   }
+
+  // geotag to the citizen's position as soon as the form opens, so the report
+  // is pinned to where they're standing without an extra tap.
+  useEffect(() => {
+    locate();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   async function pickFile(e: React.ChangeEvent<HTMLInputElement>) {
     const f = e.target.files?.[0];
@@ -183,6 +190,12 @@ export default function ReportModal({
               📍 {coords ? "Located" : "Use my location"}
             </button>
           </div>
+
+          {coords && (
+            <div className="flex items-center gap-1.5 text-[11.5px] text-verify">
+              <span>📍</span> Pinned to your location — you&apos;ll land right on it after filing.
+            </div>
+          )}
 
           {imageUrl && (
             <div className="relative">

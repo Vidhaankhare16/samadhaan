@@ -53,6 +53,8 @@ export default function Home() {
   const [guide, setGuide] = useState(true); // opens on every load
   const [needsPlaces, setNeedsPlaces] = useState<Place[]>([]);
   const [routeId, setRouteId] = useState<string | null>(null);
+  const [flyToId, setFlyToId] = useState<string | null>(null);
+  const filedRef = useRef<string | null>(null);
   // mobile bottom sheet: "min" tucks it away so the full map shows, "full" covers most of it
   const [sheet, setSheet] = useState<SheetState>("half");
   const [userLoc, setUserLoc] = useState<{ lat: number; lng: number } | null>(null);
@@ -173,16 +175,36 @@ export default function Home() {
   const resolved = reports.filter((r) => r.status === "resolved").length;
   const actions = activity.filter((a) => a.status === "action").length;
 
+  // A report was just filed: pin it + open the reasoning, but keep the modal's
+  // success screen up. We fly to the pin when the citizen closes the modal
+  // (its button literally reads "Watch it on the map").
   function onFiled(r: Report) {
-    setModal(null);
+    filedRef.current = r.id;
     setSelectedId(r.id);
     setView("agents");
-    if (!isDesktop) setSheet("full");
   }
+  const closeModal = useCallback(() => {
+    setModal(null);
+    const id = filedRef.current;
+    if (!id) return;
+    filedRef.current = null;
+    setSelectedId(id);
+    // reveal the map (half sheet) and fly to the exact geotagged pin
+    if (!isDesktop) setSheet("half");
+    setFlyToId(id);
+  }, [isDesktop]);
   function selectReport(id: string | null) {
     setSelectedId(id);
     if (!isDesktop && id) setSheet("full");
   }
+
+  // px covered by the mobile bottom sheet, so a flown-to pin frames above it
+  const bottomInsetPx = useMemo(() => {
+    if (isDesktop) return 0;
+    const vh = typeof window !== "undefined" ? window.innerHeight : 800;
+    const frac = sheet === "full" ? 0.88 : sheet === "half" ? 0.46 : 0.1;
+    return Math.round(vh * frac);
+  }, [isDesktop, sheet]);
 
   const panel = (
     <CommandPanel
@@ -205,13 +227,15 @@ export default function Home() {
         places={needsPlaces}
         focus={userLoc}
         routeTo={routeTo}
+        flyToId={flyToId}
+        bottomInsetPx={bottomInsetPx}
         selectedId={selectedId}
         onSelect={selectReport}
       />
 
       <header className="absolute top-0 inset-x-0 z-20 flex items-center gap-3 px-3 sm:px-4 py-2.5 pointer-events-none">
         <div className="pointer-events-auto flex items-center gap-2 bg-paper-2/90 backdrop-blur border border-line rounded-full pl-3 pr-2 py-1.5 shadow-sm">
-          <span className="serif text-lg leading-none" style={{ fontFamily: "system-ui,'Noto Sans Devanagari',serif" }}>समाधान</span>
+          <span className="deva text-lg leading-none font-semibold">समाधान</span>
           <span className="serif text-base leading-none hidden sm:inline">Samadhaan</span>
           <span className="flex items-center gap-1 mono text-[10px] ml-1" style={{ color: connected ? "#236646" : "#9c2f24" }}>
             <span className={`w-1.5 h-1.5 rounded-full inline-block ${connected ? "bg-verify live-dot" : "bg-urgent"}`} />
@@ -290,8 +314,8 @@ export default function Home() {
       <Toaster toasts={toasts} onDismiss={dismissToast} />
 
       {guide && <StarterGuide onClose={() => setGuide(false)} />}
-      {modal === "report" && <ReportModal offset={offset} onClose={() => setModal(null)} onFiled={onFiled} />}
-      {modal === "speak" && <SpeakModal onClose={() => setModal(null)} onFiled={onFiled} />}
+      {modal === "report" && <ReportModal offset={offset} onClose={closeModal} onFiled={onFiled} />}
+      {modal === "speak" && <SpeakModal offset={offset} onClose={closeModal} onFiled={onFiled} />}
       {modal === "needs" && (
         <NeedsModal
           userLoc={userLoc}

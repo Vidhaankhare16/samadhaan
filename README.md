@@ -48,7 +48,7 @@ Two calling paths reach the same pipeline:
 
 Samadhaan doesn't stop at dropping a complaint into an inbox. When Gemini classifies an issue as **high priority**, the Action agent places an **outbound phone call to the responsible municipal official** and briefs them by voice — the issue, the area, the severity, and the tracking id — so the most urgent problems reach a real person in minutes, not days. Officials opt in by leaving their number (no app, no internet needed on their side), and the starter guide ships a **"get a call from our agent"** demo so anyone can experience exactly what an officer hears.
 
-The outbound voice runs on a dedicated LiveKit + Gemini Live layer over an Indian SIP trunk (see [`voice-agent/`](voice-agent/README.md)). A real **+91 line** — for both inbound rural reporting and outbound official calls — is being provisioned (KYC-gated per Indian telecom rules), while the free in-browser call keeps the demo working today.
+The outbound voice runs on a dedicated LiveKit + Gemini Live layer over an Indian (Vobiz) SIP trunk, deployed on its own Cloud Run service alongside the app (see [`voice-agent/`](voice-agent/README.md)). **This is live:** the starter guide's *"get a call from our agent"* button places a real outbound phone call within seconds, so anyone can hear exactly what an official hears. The matching **+91 inbound line** for rural reporting is still being provisioned (KYC-gated per Indian telecom rules); until it lands, the US Dialogflow line and the free in-browser call keep inbound working today.
 
 ### 3. Built for every body: the accessibility layer
 

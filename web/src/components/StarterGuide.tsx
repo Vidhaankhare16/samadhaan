@@ -55,12 +55,13 @@ export default function StarterGuide({ onClose }: { onClose: () => void }) {
     if (!phone.replace(/\D/g, "")) return;
     setCall("calling");
     try {
-      // Captures the number now; the outbound call runs once the +91 line is live.
-      await fetch("/api/officials", {
+      // Places a real outbound briefing call to the number right now.
+      const resp = await fetch("/api/demo-call", {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ phone }),
       });
+      if (!resp.ok) throw new Error("call failed");
       setCall("done");
     } catch {
       setCall("idle");
@@ -116,7 +117,7 @@ export default function StarterGuide({ onClose }: { onClose: () => void }) {
               </div>
               {call === "done" ? (
                 <p className="text-[13px] font-semibold" style={{ color: step.accent }}>
-                  ✓ Our agent will ring {phone} and ask you about the issue — just like an officer hears it.
+                  📞 Calling {phone} now — pick up to hear exactly what an officer hears when an issue is escalated.
                 </p>
               ) : (
                 <div className="w-full max-w-xs flex flex-col gap-2">
