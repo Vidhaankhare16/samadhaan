@@ -27,7 +27,13 @@ function pinSvg(report: Report): string {
 }
 
 function placeSvg(p: Place): string {
-  const emoji = p.tags.includes("pet_friendly") ? "🐾" : p.tags.includes("cyclist") ? "🚲" : "♿";
+  const emoji = p.tags.includes("pet_friendly")
+    ? "🐾"
+    : p.tags.includes("cyclist")
+      ? "🚲"
+      : p.tags.includes("wheelchair")
+        ? "♿"
+        : "📍";
   const svg = `<svg width="34" height="34" viewBox="0 0 34 34" xmlns="http://www.w3.org/2000/svg">
 <defs><filter id="d" x="-30%" y="-30%" width="160%" height="160%"><feDropShadow dx="0" dy="1" stdDeviation="1" flood-opacity="0.3"/></filter></defs>
 <rect x="3" y="3" width="28" height="28" rx="8" fill="#1f4f7a" stroke="#faf5eb" stroke-width="2.2" filter="url(#d)"/>

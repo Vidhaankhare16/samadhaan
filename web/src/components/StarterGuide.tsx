@@ -33,12 +33,39 @@ const STEPS = [
     body: "Wheelchair user, pet parent, low vision or senior? We'll map places near you that actually work — accessible metro stations, pet-friendly cafes and more.",
     accent: "#1f4f7a",
   },
+  {
+    emoji: "🏛️",
+    tag: "For officials",
+    title: "Get called when issues arise",
+    body: "Municipal or ward officer? Leave your number and our agent phones you the moment an issue is filed in your area — a spoken briefing with the tracking id. No app, no internet needed on your side.",
+    accent: "#173a2f",
+  },
 ];
 
 export default function StarterGuide({ onClose }: { onClose: () => void }) {
   const [i, setI] = useState(0);
   const step = STEPS[i];
   const last = i === STEPS.length - 1;
+
+  // "For officials" sign-up state
+  const [phone, setPhone] = useState("");
+  const [area, setArea] = useState("");
+  const [signup, setSignup] = useState<"idle" | "saving" | "done">("idle");
+
+  async function registerOfficial() {
+    if (!phone.replace(/\D/g, "")) return;
+    setSignup("saving");
+    try {
+      await fetch("/api/officials", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ phone, area }),
+      });
+      setSignup("done");
+    } catch {
+      setSignup("idle");
+    }
+  }
 
   return (
     <div className="fixed inset-0 z-[70] flex items-center justify-center p-4">
@@ -76,8 +103,45 @@ export default function StarterGuide({ onClose }: { onClose: () => void }) {
                 📞 Call the agent — {VOICE_NUMBER}
               </a>
               <span className="text-[11px] text-ink-soft">
-                US number for now, due to budget constraints
+                Also free in your browser — open <strong>Call agent</strong> (works in India, no ISD)
               </span>
+            </div>
+          )}
+
+          {step.tag === "For officials" && (
+            <div className="mt-4 flex flex-col items-center gap-2">
+              {signup === "done" ? (
+                <p className="text-[13px] font-semibold" style={{ color: step.accent }}>
+                  ✓ You&apos;re set. We&apos;ll call {phone} when an issue is filed
+                  {area ? ` in ${area}` : ""}.
+                </p>
+              ) : (
+                <div className="w-full max-w-xs flex flex-col gap-2">
+                  <input
+                    type="tel"
+                    inputMode="tel"
+                    value={phone}
+                    onChange={(e) => setPhone(e.target.value)}
+                    placeholder="Your phone, e.g. +91 98XXXXXXXX"
+                    className="w-full rounded-lg border border-line-strong bg-card px-3 py-2 text-sm outline-none focus:border-ink"
+                  />
+                  <input
+                    type="text"
+                    value={area}
+                    onChange={(e) => setArea(e.target.value)}
+                    placeholder="Area you cover (optional)"
+                    className="w-full rounded-lg border border-line-strong bg-card px-3 py-2 text-sm outline-none focus:border-ink"
+                  />
+                  <button
+                    onClick={registerOfficial}
+                    disabled={signup === "saving" || !phone.replace(/\D/g, "")}
+                    className="inline-flex items-center justify-center gap-2 rounded-full px-5 py-2.5 text-sm font-semibold text-white transition-transform active:scale-95 disabled:opacity-50"
+                    style={{ background: step.accent }}
+                  >
+                    {signup === "saving" ? "Saving…" : "📞 Call me about issues"}
+                  </button>
+                </div>
+              )}
             </div>
           )}
         </div>

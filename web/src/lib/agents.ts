@@ -2,6 +2,8 @@ import { allReportsRaw, getReport, pushAgentLog, putReport } from "./store";
 import { haversine } from "./geo";
 import { CATEGORY_META, type AgentLogEntry, type AgentName, type IssueCategory, type Report, type Severity } from "./types";
 import { genJSONWithImage, genJSONWithImages, genText, geminiReady } from "./gemini";
+import { notifyOfficials } from "./notify";
+import { officialsForArea } from "./officials";
 
 const HOUR = 3600_000;
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
@@ -125,7 +127,7 @@ End with: "— Samadhaan Autonomous Civic Desk". Output only the letter text.`,
 export async function runAgentSwarm(reportId: string, opts: { preClassified?: boolean } = {}) {
   const r0 = getReport(reportId);
   if (!r0) return;
-  let r = r0;
+  const r = r0;
 
   // 1) Intake
   log(r, "Intake", `Received ${r.source} report`, `Normalized the ${r.source} input from ${r.area} into a structured civic report and opened a case file.`);
@@ -184,6 +186,13 @@ export async function runAgentSwarm(reportId: string, opts: { preClassified?: bo
   r.status = "filed";
   putReport(r);
   log(r, "Action", `Filed complaint → ${meta.department.name}`, `Drafted and filed an official grievance autonomously, with a ${meta.department.slaHours}-hour SLA. The citizen was notified with a tracking id ${r.shortId}.`, "action");
+
+  // 4b) Outbound — call the responsible official(s) and brief them by phone.
+  const officials = officialsForArea(r.area);
+  if (officials.length) {
+    log(r, "Action", `Calling ${officials.length} official(s) in ${r.area}…`, `Placing an outbound voice briefing to the municipal official(s) covering ${r.area} so a human is alerted on the phone, not just in an inbox.`, "action");
+    void notifyOfficials(r); // gated; no-ops if the voice-agent isn't configured
+  }
 
   // hand off to Watchdog (runs on the SLA cron)
   await sleep(500);

@@ -14,7 +14,7 @@ import NeedsModal from "@/components/NeedsModal";
 import Toaster, { type Toast } from "@/components/Toaster";
 import { CATEGORY_META } from "@/lib/types";
 import { useLocale } from "@/lib/useLocale";
-import { deptName, localizeArea, localizePlace, localizeReport, localizeText } from "@/lib/locale";
+import { deptName, localizeArea, localizeReport, localizeText } from "@/lib/locale";
 
 const CityMap = dynamic(() => import("@/components/CityMap"), { ssr: false });
 
@@ -124,17 +124,11 @@ export default function Home() {
       ),
     [reports, offset, locale],
   );
-  const shiftedPlaces = useMemo(
-    () =>
-      needsPlaces.map((p) =>
-        localizePlace({ ...p, lat: p.lat + offset.dLat, lng: p.lng + offset.dLng }, locale),
-      ),
-    [needsPlaces, offset, locale],
-  );
+  // recommended places are REAL nearby places (real coords) — no shift/relabel
   const routeTo = useMemo(() => {
-    const p = shiftedPlaces.find((x) => x.id === routeId);
+    const p = needsPlaces.find((x) => x.id === routeId);
     return p ? { ...p, _origin: userLoc } : null;
-  }, [shiftedPlaces, routeId, userLoc]);
+  }, [needsPlaces, routeId, userLoc]);
 
   const localizedActivity = useMemo(
     () =>
@@ -194,7 +188,7 @@ export default function Home() {
     <div className="relative h-screen overflow-hidden">
       <CityMap
         reports={shiftedReports}
-        places={shiftedPlaces}
+        places={needsPlaces}
         focus={userLoc}
         routeTo={routeTo}
         selectedId={selectedId}
@@ -286,7 +280,6 @@ export default function Home() {
       {modal === "needs" && (
         <NeedsModal
           userLoc={userLoc}
-          locale={locale}
           onClose={() => setModal(null)}
           onShowOnMap={(places) => setNeedsPlaces(places)}
           onRoute={(place) => {
