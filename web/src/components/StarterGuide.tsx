@@ -20,6 +20,13 @@ const STEPS = [
     accent: "#d2602e",
   },
   {
+    emoji: "📢",
+    tag: "We escalate",
+    title: "We call the authorities for you",
+    body: "When Gemini flags an issue as high priority, our agent doesn't just file it — it phones the relevant authority and briefs them directly, so the most urgent problems reach a real person in minutes, not an inbox.",
+    accent: "#b23a2e",
+  },
+  {
     emoji: "📷",
     tag: "Snap it",
     title: "Or send a photo",
@@ -33,13 +40,6 @@ const STEPS = [
     body: "Wheelchair user, pet parent, low vision or senior? We'll map places near you that actually work — accessible metro stations, pet-friendly cafes and more.",
     accent: "#1f4f7a",
   },
-  {
-    emoji: "🏛️",
-    tag: "For officials",
-    title: "Get called when issues arise",
-    body: "Municipal or ward officer? Leave your number and our agent phones you the moment an issue is filed in your area — a spoken briefing with the tracking id. No app, no internet needed on your side.",
-    accent: "#173a2f",
-  },
 ];
 
 export default function StarterGuide({ onClose }: { onClose: () => void }) {
@@ -47,23 +47,23 @@ export default function StarterGuide({ onClose }: { onClose: () => void }) {
   const step = STEPS[i];
   const last = i === STEPS.length - 1;
 
-  // "For officials" sign-up state
+  // "Get a call from our agent" demo state
   const [phone, setPhone] = useState("");
-  const [area, setArea] = useState("");
-  const [signup, setSignup] = useState<"idle" | "saving" | "done">("idle");
+  const [call, setCall] = useState<"idle" | "calling" | "done">("idle");
 
-  async function registerOfficial() {
+  async function requestCall() {
     if (!phone.replace(/\D/g, "")) return;
-    setSignup("saving");
+    setCall("calling");
     try {
+      // Captures the number now; the outbound call runs once the +91 line is live.
       await fetch("/api/officials", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ phone, area }),
+        body: JSON.stringify({ phone }),
       });
-      setSignup("done");
+      setCall("done");
     } catch {
-      setSignup("idle");
+      setCall("idle");
     }
   }
 
@@ -71,8 +71,8 @@ export default function StarterGuide({ onClose }: { onClose: () => void }) {
     <div className="fixed inset-0 z-[70] flex items-center justify-center p-4">
       <div className="absolute inset-0 bg-ink/55 backdrop-blur-md" onClick={onClose} />
 
-      <div className="relative w-full max-w-md bg-card border border-line-strong rounded-2xl shadow-2xl overflow-hidden">
-        <div className="px-6 pt-5 text-center">
+      <div className="relative w-full max-w-md bg-card border border-line-strong rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[calc(100dvh-2rem)]">
+        <div className="px-6 pt-5 text-center shrink-0">
           <div className="eyebrow text-saffron">Welcome to</div>
           <div className="flex items-baseline justify-center gap-2 mt-0.5">
             <span className="serif text-2xl leading-none" style={{ fontFamily: "system-ui,'Noto Sans Devanagari',serif" }}>समाधान</span>
@@ -80,7 +80,8 @@ export default function StarterGuide({ onClose }: { onClose: () => void }) {
           </div>
         </div>
 
-        <div key={i} className="px-6 py-6 text-center rise">
+        {/* scrollable step body — nav stays pinned below so users can always reach Next */}
+        <div key={i} className="px-6 py-6 text-center rise overflow-y-auto thin-scroll flex-1 min-h-0">
           <div
             className="mx-auto grid place-items-center w-20 h-20 rounded-full text-4xl"
             style={{ background: step.accent + "18" }}
@@ -108,12 +109,14 @@ export default function StarterGuide({ onClose }: { onClose: () => void }) {
             </div>
           )}
 
-          {step.tag === "For officials" && (
-            <div className="mt-4 flex flex-col items-center gap-2">
-              {signup === "done" ? (
+          {step.tag === "We escalate" && (
+            <div className="mt-5 border-t border-line pt-4 flex flex-col items-center gap-2">
+              <div className="text-[12px] font-semibold" style={{ color: step.accent }}>
+                Try it — get a call from our agent
+              </div>
+              {call === "done" ? (
                 <p className="text-[13px] font-semibold" style={{ color: step.accent }}>
-                  ✓ You&apos;re set. We&apos;ll call {phone} when an issue is filed
-                  {area ? ` in ${area}` : ""}.
+                  ✓ Our agent will ring {phone} and ask you about the issue — just like an officer hears it.
                 </p>
               ) : (
                 <div className="w-full max-w-xs flex flex-col gap-2">
@@ -123,30 +126,26 @@ export default function StarterGuide({ onClose }: { onClose: () => void }) {
                     value={phone}
                     onChange={(e) => setPhone(e.target.value)}
                     placeholder="Your phone, e.g. +91 98XXXXXXXX"
-                    className="w-full rounded-lg border border-line-strong bg-card px-3 py-2 text-sm outline-none focus:border-ink"
-                  />
-                  <input
-                    type="text"
-                    value={area}
-                    onChange={(e) => setArea(e.target.value)}
-                    placeholder="Area you cover (optional)"
-                    className="w-full rounded-lg border border-line-strong bg-card px-3 py-2 text-sm outline-none focus:border-ink"
+                    className="w-full rounded-lg border border-line-strong bg-card px-3 py-2 text-sm text-center outline-none focus:border-ink"
                   />
                   <button
-                    onClick={registerOfficial}
-                    disabled={signup === "saving" || !phone.replace(/\D/g, "")}
+                    onClick={requestCall}
+                    disabled={call === "calling" || !phone.replace(/\D/g, "")}
                     className="inline-flex items-center justify-center gap-2 rounded-full px-5 py-2.5 text-sm font-semibold text-white transition-transform active:scale-95 disabled:opacity-50"
                     style={{ background: step.accent }}
                   >
-                    {signup === "saving" ? "Saving…" : "📞 Call me about issues"}
+                    {call === "calling" ? "Requesting…" : "📞 Get a call from our agent"}
                   </button>
+                  <span className="text-[11px] text-ink-soft">
+                    Demo · experience what an officer hears when an issue is escalated
+                  </span>
                 </div>
               )}
             </div>
           )}
         </div>
 
-        <div className="flex items-center justify-between px-6 pb-5">
+        <div className="flex items-center justify-between px-6 pb-5 pt-3 shrink-0 border-t border-line">
           {i > 0 ? (
             <button onClick={() => setI(i - 1)} className="text-[13px] text-ink-soft hover:text-ink mono">
               ← Back

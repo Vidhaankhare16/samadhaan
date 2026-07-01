@@ -21,6 +21,18 @@ const CityMap = dynamic(() => import("@/components/CityMap"), { ssr: false });
 type ModalKind = null | "report" | "speak" | "needs";
 export interface GeoOffset { dLat: number; dLng: number }
 
+type SheetState = "min" | "half" | "full";
+const SHEET_HEIGHT: Record<SheetState, string> = {
+  min: "56px", // just the grab handle peeks — full map visible
+  half: "46vh",
+  full: "88vh",
+};
+const SHEET_ORDER: SheetState[] = ["min", "half", "full"];
+function stepSheet(cur: SheetState, dir: 1 | -1): SheetState {
+  const next = SHEET_ORDER.indexOf(cur) + dir;
+  return SHEET_ORDER[Math.max(0, Math.min(SHEET_ORDER.length - 1, next))];
+}
+
 function useIsDesktop() {
   const [d, setD] = useState(true);
   useEffect(() => {
@@ -41,7 +53,8 @@ export default function Home() {
   const [guide, setGuide] = useState(true); // opens on every load
   const [needsPlaces, setNeedsPlaces] = useState<Place[]>([]);
   const [routeId, setRouteId] = useState<string | null>(null);
-  const [sheetFull, setSheetFull] = useState(false);
+  // mobile bottom sheet: "min" tucks it away so the full map shows, "full" covers most of it
+  const [sheet, setSheet] = useState<SheetState>("half");
   const [userLoc, setUserLoc] = useState<{ lat: number; lng: number } | null>(null);
   const [toasts, setToasts] = useState<Toast[]>([]);
   const notifiedRef = useRef<Map<string, string>>(new Map());
@@ -90,7 +103,7 @@ export default function Home() {
       const emoji = CATEGORY_META[r.category]?.emoji ?? "📍";
       const area = localizeArea(r.area, locale);
       const dept = r.department ? deptName(r.category, locale?.city) : "the department";
-      // eslint-disable-next-line react-hooks/set-state-in-effect -- notify on live status change
+      /* eslint-disable react-hooks/set-state-in-effect -- notify on live status change */
       if (r.status === "filed" && r.department) {
         pushToast({
           emoji: "✅",
@@ -113,6 +126,7 @@ export default function Home() {
           body: `${emoji} ${area} — the fix was confirmed and the case closed.`,
         });
       }
+      /* eslint-enable react-hooks/set-state-in-effect */
     }
   }, [reports, pushToast, locale]);
 
@@ -163,11 +177,11 @@ export default function Home() {
     setModal(null);
     setSelectedId(r.id);
     setView("agents");
-    if (!isDesktop) setSheetFull(true);
+    if (!isDesktop) setSheet("full");
   }
   function selectReport(id: string | null) {
     setSelectedId(id);
-    if (!isDesktop && id) setSheetFull(true);
+    if (!isDesktop && id) setSheet("full");
   }
 
   const panel = (
@@ -227,20 +241,21 @@ export default function Home() {
       ) : (
         <aside
           className="fixed inset-x-0 bottom-0 z-20 bg-paper-2 border-t border-line-strong rounded-t-2xl shadow-2xl flex flex-col overflow-hidden transition-[height] duration-300"
-          style={{ height: sheetFull ? "88vh" : "46vh" }}
+          style={{ height: SHEET_HEIGHT[sheet] }}
         >
           <button
-            onClick={() => setSheetFull((v) => !v)}
+            // tap cycles up (min→half→full) then collapses fully; drag gives fine control
+            onClick={() => setSheet((s) => (s === "full" ? "min" : stepSheet(s, 1)))}
             onTouchStart={(e) => (sheetDragY.current = e.touches[0].clientY)}
             onTouchEnd={(e) => {
               if (sheetDragY.current == null) return;
               const dy = e.changedTouches[0].clientY - sheetDragY.current;
-              if (dy < -35) setSheetFull(true);
-              else if (dy > 35) setSheetFull(false);
+              if (dy < -35) setSheet((s) => stepSheet(s, 1));
+              else if (dy > 35) setSheet((s) => stepSheet(s, -1));
               sheetDragY.current = null;
             }}
             className="shrink-0 py-2.5 grid place-items-center touch-none"
-            aria-label={sheetFull ? "Collapse panel" : "Expand panel"}
+            aria-label={sheet === "min" ? "Expand panel" : "Collapse panel"}
           >
             <span className="h-1.5 w-12 rounded-full bg-line-strong" />
           </button>
@@ -286,7 +301,7 @@ export default function Home() {
             setNeedsPlaces((prev) => (prev.some((p) => p.id === place.id) ? prev : [...prev, place]));
             setRouteId(place.id);
             setModal(null);
-            if (!isDesktop) setSheetFull(false);
+            if (!isDesktop) setSheet("min");
           }}
         />
       )}

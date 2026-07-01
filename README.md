@@ -44,11 +44,17 @@ Two calling paths reach the same pipeline:
 1. **Real phone line:** [(251) 647‑0679](tel:+12516470679), via the Dialogflow CX phone gateway.
 2. **Free in browser call:** a full "call the agent" screen (ringing, connected timer, the agent speaking, a live transcript) built with the browser speech APIs. No phone number, no international dialling, no charges, so it works from India during the demo.
 
-### 2. Built for every body: the accessibility layer
+### 2. The agent calls the authority back
+
+Samadhaan doesn't stop at dropping a complaint into an inbox. When Gemini classifies an issue as **high priority**, the Action agent places an **outbound phone call to the responsible municipal official** and briefs them by voice — the issue, the area, the severity, and the tracking id — so the most urgent problems reach a real person in minutes, not days. Officials opt in by leaving their number (no app, no internet needed on their side), and the starter guide ships a **"get a call from our agent"** demo so anyone can experience exactly what an officer hears.
+
+The outbound voice runs on a dedicated LiveKit + Gemini Live layer over an Indian SIP trunk (see [`voice-agent/`](voice-agent/README.md)). A real **+91 line** — for both inbound rural reporting and outbound official calls — is being provisioned (KYC-gated per Indian telecom rules), while the free in-browser call keeps the demo working today.
+
+### 3. Built for every body: the accessibility layer
 
 In **My needs**, a resident says who they are (wheelchair user, pet owner, parent with a stroller, low vision, senior, cyclist) or describes their situation in their own words. Gemini recommends nearby places that genuinely work for them (step free metro stations, pet friendly cafes, accessible parks) and pins them on the map with a short, personal reason for each. The platform becomes an everyday companion for inclusion, not just a complaint box.
 
-### 3. Snap a photo, geotagged on the map
+### 4. Snap a photo, geotagged on the map
 
 Take a picture of the issue and the app does the rest. The photo is **geotagged** so the report lands at the right spot and the map auto centres on your vicinity. **Gemini Vision** identifies the issue and scores its severity, and the report is **plotted live** as a colour coded marker before the agents take over. The map is a living picture of the neighbourhood that updates the instant a report arrives, from any channel.
 
@@ -84,7 +90,7 @@ Take a picture of the issue and the app does the rest. The photo is **geotagged*
 | **Intake** | a report arrives (call, photo, or text) | turns any input into a structured case |
 | **Diagnosis** | after intake | Gemini classifies the category and severity and writes a clear title |
 | **Dedup** | after diagnosis | clusters nearby reports of the same issue and raises priority |
-| **Action** | after dedup | drafts a formal grievance and files it with the right department and a deadline |
+| **Action** | after dedup | drafts a formal grievance, files it with the right department and a deadline, and phones the responsible official by voice on high-priority issues |
 | **Watchdog** | continuously | tracks the deadline and escalates a breach with no human trigger |
 | **ProofOfFix** | an after photo is uploaded | Gemini compares before and after and auto resolves the case |
 
